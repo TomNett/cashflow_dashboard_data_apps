@@ -4,6 +4,7 @@ css_style = """
         margin: 20px;
     }
 
+    
     .subheader {
         font-size: 24px;
         font-weight: bold;
@@ -11,7 +12,7 @@ css_style = """
         margin-bottom:50px
     }
 
-.subheader-2 {
+    .subheader-2 {
         font-size: 21px;
         font-weight: bold;
         margin-top: 50px;

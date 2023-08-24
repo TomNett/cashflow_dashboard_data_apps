@@ -1,9 +1,7 @@
 import base64
 import os
 
-logo_image = os.path.abspath("./app/static/keboola.png")
-html_logo = f'<img style="width: 20%; margin-left:-2%;margin-bottom:50px" src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}">'
-logo_html = f"""<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" style="width: 100px; margin-left: -10px;"></div>"""
+
 html_code = '''
 <div style="display: flex; justify-content: center;">
     <div style="width: 47%;text-align:left;padding-right:3%">
@@ -26,7 +24,7 @@ html_footer = f"""
             <p><strong>Version:</strong> 1.1</p>
         </div>
         <div style="margin-left: auto;">
-            <img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" style="width: 100px;">
+            
         </div>
     </div>
 """
@@ -35,7 +33,7 @@ title = {
     "filter":'<p class="subheader">Filters</p>',
     "statistic":'<p class="subheader">Statistics</p>',
     "charts":'<p class="subheader">Charts</p>',
-    "campaigns":'<p class="subheader">Clicks</p>',
+    "clicks":'<p class="subheader">Clicks</p>',
     "impressions":'<p class="subheader">Impressions</p>',
     "clicktr":'<p class="subheader">Click-Through Rate</p>',
     "campaignsPerClick":'<p class="subheader">Top 10 Campaigns</p>',
