@@ -39,5 +39,6 @@ title = {
     "campaignsPerClick":'<p class="subheader">Top 10 Campaigns</p>',
     "rawData":'<p class="subheader">Raw data</p>',
     "description":'<p class="subheader">Description</p>',
-    "sourcesPerClick":'<p class="subheader">Top 10 Marketing Sources</p>'
+    "sourcesPerClick":'<p class="subheader">Top 10 Marketing Sources</p>',
+    "topcampains":'<p class="subheader">Top Performing Campaigns</p>'
 }

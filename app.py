@@ -5,6 +5,8 @@ import os
 import datetime
 import matplotlib.pyplot as plt 
 import plotly.express as px
+from pandas import option_context
+import time 
 
 from my_package.style import css_style
 from my_package.html import html_code, html_footer, title
@@ -13,14 +15,21 @@ from my_package.html import html_code, html_footer, title
 st.set_page_config(layout="wide")
 file_path = "/data/in/tables/input_table.csv"
 file_path_local = "data_apps\data\data.csv"
-
-df = pd.read_csv(file_path_local)
-df = df.dropna(axis = 1)
+file_path_local_2 = "data_apps/data/facebook.csv"
+df1 = pd.read_csv(file_path_local)
 #CREATED_DATE	START_DATE	MODIFIED_DATE	END_DATE
-df["CREATED_DATE"] = pd.to_datetime(df["CREATED_DATE"]).dt.date
-df["START_DATE"] = pd.to_datetime(df["START_DATE"]).dt.date
-df["MODIFIED_DATE"] = pd.to_datetime(df["MODIFIED_DATE"]).dt.date
-df["END_DATE"] = pd.to_datetime(df["END_DATE"]).dt.date
+df1["CREATED_DATE"] = pd.to_datetime(df1["CREATED_DATE"]).dt.date
+df1["START_DATE"] = pd.to_datetime(df1["START_DATE"]).dt.date
+df1["MODIFIED_DATE"] = pd.to_datetime(df1["MODIFIED_DATE"]).dt.date
+df1["END_DATE"] = pd.to_datetime(df1["END_DATE"]).dt.date
+df2 = pd.read_csv(file_path_local_2)
+df2 = df2.drop(columns=['SRC_ID'])
+df2 = df2.rename(columns={"PLATFORM_ID": "PLATFORM","CURRENCY_ID": "CURRENCY",
+                          "SPENT_AMOUNT": "AMOUNT_SPENT",
+                          "SIX_SEC_VIDEO_VIEW": "THRUPLAYS",
+                          "LANDING_PAGE_CLICKS": "LANDINGPAGECLICKS"}, errors="raise")
+df = pd.concat([df1, df2], ignore_index=True)
+
 df["IMPRESSIONS"] = pd.to_numeric(df["IMPRESSIONS"])
 df["LINK_CLICKS"] = pd.to_numeric(df["LINK_CLICKS"])
 df['START_DATE'] = pd.to_datetime(df['START_DATE'])
@@ -87,14 +96,64 @@ if app_mode=='Analytics':
             filtered_df = filtered_df[filtered_df['CAMPAIGN_NAME'].isin(st.session_state.campaign)]
 
         st.markdown(title["charts"], unsafe_allow_html=True)
-        tab1, tab2, tab3 = st.tabs(["Visualizations per Campaigns","Visualizations per Platform", "Raw data"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Best performing Campaigns","Visualizations per Campaigns","Visualizations per Platform", "Raw data"])
         grouped = filtered_df.groupby(['CAMPAIGN_NAME', 'START_DATE']).agg({'LINK_CLICKS': 'sum', 'IMPRESSIONS': 'sum'}).reset_index()
         grouped['ctr'] = (grouped['LINK_CLICKS'] / grouped['IMPRESSIONS']) * 100
         campaings_df = grouped.copy()
         max_campaign = campaings_df["ctr"].max()
         #max_campaign = campaings_df["CTR"].max()
-
         with tab1:
+            st.markdown(title["topcampains"], unsafe_allow_html=True)
+            df_top_campaing =  filtered_df.groupby(['PLATFORM','CAMPAIGN_NAME', 'START_DATE']).agg({'IMPRESSIONS': 'sum', 'LINK_CLICKS': 'sum', }).reset_index()
+            st.write(df_top_campaing.head(5))
+            col1, col2, col3 = st.columns(3)
+            ctr_mean = round(np.mean(filtered_df["CTR"]),2)*100
+            col1.metric("Average Clickthrough rate", str(ctr_mean) + ' %')
+            target_value = col1.slider('Target Clickthrough Rate', 0, 100, 40)
+            
+           
+
+            fig = px.bar(x=[ctr_mean],
+             y=['CTR'],
+             orientation='h',
+             labels={'x': '%', 'y': ''},
+             title='Average Clickthrough rate')
+            fig.update_layout(xaxis=dict(range=[0, 100]),height=200)
+            fig.update_traces(marker_color='rgb(255, 75, 75)')
+            fig.add_annotation(x=ctr_mean * 100, y='CTR', 
+                   text=f"{ctr_mean * 100:.2f}%",  # format the number to 2 decimal places
+                   showarrow=False,
+                   yshift=20)
+            fig.add_shape(type="line", 
+              x0=target_value, y0=0, x1=target_value, y1=1,
+              line=dict(color='rgb(64, 224, 208)', width=6),
+              xref='x', yref='paper')
+            col1.plotly_chart(fig, use_container_width=True)
+            
+            cpm_mean = round(np.mean(filtered_df["CPM"]),2)
+            max_cpm = np.max(filtered_df["CPM"])
+            col2.metric("Cost per mille", str(cpm_mean) + ' EUR')
+            cpm_mean = round(np.mean(filtered_df["CPM"]),2)
+            max_cpm_range= cpm_mean + 10
+            fig = px.bar(x=[cpm_mean],
+                        y=['CPM'],
+                        orientation='h',
+                        labels={'x': 'EUR', 'y': ''},
+                        title='Average Clickthrough rate')
+            fig.update_layout(xaxis=dict(range=[0, max_cpm_range]),height=200)
+            fig.update_traces(marker_color='rgb(255, 75, 75)')
+            fig.add_annotation(x=cpm_mean, y='CPM', 
+                            text=f"{cpm_mean:.2f} EUR" ,  # format the number to 2 decimal places
+                            showarrow=False,
+                            yshift=20)
+
+            col2.plotly_chart(fig, use_container_width=True)
+            col3.metric("Humidity", "86%", "4%")
+           
+
+            
+
+        with tab2:
             # # Display title for the "Campaigns" section
             st.markdown(title["impressions"], unsafe_allow_html=True)
             fig = px.bar(campaings_df, x="START_DATE", y="IMPRESSIONS", color="CAMPAIGN_NAME")
@@ -102,7 +161,7 @@ if app_mode=='Analytics':
             # fig = px.bar(campaings_df, x="START_DATE", y="IMPRESSIONS", color="CAMPAIGN_NAME") # , color="source"
             fig.update_layout(xaxis_title='Date', yaxis_title='Impressions')
             # # Display the bar chart
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=False)
 
             # Clicks
             st.markdown(title["clicks"], unsafe_allow_html=True)
@@ -173,6 +232,8 @@ elif app_mode == 'Expenses':
         since_date = pd.Timestamp(st.session_state.since_date)
         until_date = pd.Timestamp(st.session_state.until_date)
         filtered_df = df[(df['START_DATE'] >= since_date) & (df['START_DATE'] <= until_date)]
+
+        
         tab1, tab2 = st.tabs(["Expenses per Platform","Expenses per Campaign"])
         
         grouped = filtered_df.groupby(['CAMPAIGN_NAME', 'START_DATE'])\
