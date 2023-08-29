@@ -20,7 +20,7 @@ from my_package.html import html_code, html_footer, title
 
 st.set_page_config(layout="wide")
 #file_path = "/data/in/tables/input_table.csv"
-file_path_local = "data_apps/data/ads_insight_fact.csv"
+file_path_local = "data/ads_insight_fact.csv"
 df = pd.read_csv(file_path_local)
 #CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
 df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
