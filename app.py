@@ -1,6 +1,6 @@
 #TODO = csv read budgets and show over the limit 
-#TODO edit df inside the app
 #TODO utracena % z kamp
+
 
 import streamlit as st
 import pandas as pd
@@ -8,11 +8,11 @@ import numpy as np
 import os
 import datetime
 import plotly.express as px
-from pandas import option_context
 import time 
 from datetime import date
 from datetime import timedelta
 import plotly.graph_objects as go
+from urllib.error import URLError
 
 from my_package.style import css_style
 from my_package.html import html_code, html_footer, title
@@ -32,6 +32,8 @@ df["end_date"] = pd.to_datetime(df["end_date"]).dt.date
 df["impressions"] = pd.to_numeric(df["impressions"])
 df["link_clicks"] = pd.to_numeric(df["link_clicks"])
 df['start_date'] = pd.to_datetime(df['start_date'])
+df['campaign_name'] = df.apply(lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
+
 
 app_mode = st.sidebar.selectbox('Select Page',['Expenses','Analytics']) #two pages
 distinct_campaigns = df['campaign_name'].unique()
@@ -263,40 +265,46 @@ elif app_mode == 'Expenses':
         col1, col2 = st.columns(2)
         
         # Column 1 
-        month_spend = df_filtered_months.groupby(['month_name']).agg({'spent_amount': 'sum'}).reset_index()
-        month_spend['month_name'] = pd.Categorical(month_spend['month_name'], categories=months_order, ordered=True)
-
-        # Sort the dataframe by 'month_name'
-        month_spend = month_spend.sort_values('month_name').reset_index(drop=True)
+       
 
         target_value = col1.number_input('Target Spend Amount')  
         col1.metric("Spend this month", str(spend_current_month) + ' EUR')#TODO - devision by 0 , str(spend_current_month/spend_current_month)
 
         # Initialize the figure
         fig = go.Figure()
+        try:
+            month_spend = df_filtered_months.groupby(['month_name']).agg({'spent_amount': 'sum'}).reset_index()
+            month_spend['month_name'] = pd.Categorical(month_spend['month_name'], categories=months_order, ordered=True)
 
-        # Add the bars
-        for index, row in month_spend.iterrows():
-            fig.add_trace(go.Bar(
-                x=[row['spent_amount']],
-                y=[row['month_name']],
-                orientation='h',
-                text=[row['spent_amount']],  # this will be the individual value now
-                textposition='outside',
-                marker_color=px.colors.qualitative.Plotly[index % len(px.colors.qualitative.Plotly)]  # cycling through colors
-            ))
+            # Sort the dataframe by 'month_name'
+            month_spend = month_spend.sort_values('month_name').reset_index(drop=True)
+            if  month_spend.empty:
+                col1.error("Please check filters - Selected platform does not have selected campaigns")  
+            else:
+                # Add the bars
+                for index, row in month_spend.iterrows():
+                    fig.add_trace(go.Bar(
+                        x=[row['spent_amount']],
+                        y=[row['month_name']],
+                        orientation='h',
+                        text=[row['spent_amount']],  # this will be the individual value now
+                        textposition='outside',
+                        marker_color=px.colors.qualitative.Plotly[index % len(px.colors.qualitative.Plotly)]  # cycling through colors
+                    ))
 
-        fig.update_layout(title='Last five month spendings',
-                        xaxis=dict(range=[0, max(month_spend["spent_amount"])*1.15], title='Spend in EUR', showgrid=True),
-                        yaxis_title='Month',
-                        showlegend=False)
+                fig.update_layout(title='Last five month spendings',
+                                xaxis=dict(range=[0, max(month_spend["spent_amount"])*1.15], title='Spend in EUR', showgrid=True),
+                                yaxis_title='Month',
+                                showlegend=False)
 
-        fig.add_shape(type="line", 
-                    x0=target_value, y0=0, x1=target_value, y1=1,
-                    line=dict(color='rgb(64, 224, 208)', width=3),
-                    xref='x', yref='paper')
-  
-        col1.plotly_chart(fig, use_container_width=True)
+                fig.add_shape(type="line", 
+                            x0=target_value, y0=0, x1=target_value, y1=1,
+                            line=dict(color='rgb(64, 224, 208)', width=3),
+                            xref='x', yref='paper')
+        
+                col1.plotly_chart(fig, use_container_width=True)
+        except URLError as e:
+            st.error()        
 
         # Column 2 
         
@@ -337,44 +345,46 @@ elif app_mode == 'Expenses':
        
         #campaign_limit = st.number_input('Set a campaign limit')
         campains_grouped_budget = df_current_month.groupby(['campaign_name']).agg({'spent_amount': 'sum'}).reset_index() 
-        campains_grouped_budget["budget"] = 100
+        campains_grouped_budget["budget"] = np.nan
         edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
         campaigns_above_budget = edited_df[edited_df['spent_amount'] > edited_df['budget']]
-        campaigns_fig = campaigns_above_budget.copy()
+        
         col1, col2 = st.columns(2)
         
         col1.metric("Number of campaigns above the limit ", '❗' + str(campaigns_above_budget.shape[0]) + ' Campaigns above budget') #TODO 
         col1.write(campaigns_above_budget.rename(columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
 
-        if col2.button('Generate plot'):
+        if col1.button('Generate plot'):
             fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=campaigns_above_budget['campaign_name'],
+                x=campaigns_above_budget['spent_amount'],
+                orientation='h',
+                name='Cost',
+                marker_color='red',
+                text=campaigns_above_budget['spent_amount'], # <-- Add text values here
+                textposition='outside'
+            ))
 
-            # Add the bars for campaign spendings
-            for index, row in campaigns_fig.iterrows():
+            # Add Budget bars
+            fig.add_trace(go.Bar(
+                y=campaigns_above_budget['campaign_name'],
+                x=campaigns_above_budget['budget'],
+                orientation='h',
+                name='Budget',
+                marker_color='blue',
+                text=campaigns_above_budget['budget'], # <-- Add text values here
+                textposition='outside' # <-- Specify text position
+            ))
 
-                fig.add_trace(go.Bar(
-                    x=[row['spent_amount']],
-                    y=[row['campaign_name']],
-                    orientation='h',
-                    text=[row['spent_amount']],
-                    textposition='outside',
-                    marker_color=px.colors.qualitative.Plotly[index % len(px.colors.qualitative.Plotly)]
-                ))
-                # Add budget line for the campaign
-                fig.add_shape(
-                    type="line", 
-                    x0=row['budget'], x1=row['budget'], y0=index-0.4, y1=index+0.4,  # adjust the y0 and y1 values for the length of the line
-                    line=dict(color='red', width=3),
-                    xref='x', yref='y'
-                )
-
-            # Adjust layout
+            # Update layout
             fig.update_layout(
-                title='Campaigns Spendings Above Budget',
-                xaxis=dict(title='Spend in EUR', showgrid=True),
-                yaxis_title='Campaign',
-                showlegend=False
+                title='Campaign Cost vs Budget',
+                xaxis_title='Value',
+                yaxis_title='Campaign Name',
+                barmode='group'
             )
+
 
             
             col2.plotly_chart(fig, use_container_width=True)
@@ -385,27 +395,50 @@ elif app_mode == 'Expenses':
         # Charts  sections #
         ####################
         tab1, tab2 = st.tabs(["Expenses per platform_id","Expenses per Campaign"])
-        
-        grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
-            .agg({'spent_amount': 'sum' }).reset_index()
-        campaings_df = grouped.copy()
-        grouped = filtered_df.groupby(['platform_id', 'start_date'])\
-            .agg({'spent_amount': 'sum' }).reset_index()
-        platform_id_df = grouped.copy()
+        try:
 
-        with tab1:
-            fig = px.bar(platform_id_df, x="start_date", y="spent_amount", color="platform_id") #, color="source"
-            
-            fig.update_layout(
-                xaxis_title='Date',
-                yaxis_title='Expenses',
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        with tab2:
-            fig = px.bar(campaings_df, x="start_date", y="spent_amount", color="campaign_name") #, color="source"
-            
-            fig.update_layout(
-                xaxis_title='Date',
-                yaxis_title='Expenses',
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            if len(st.session_state.source) != 0:
+                filtered_df = filtered_df[filtered_df['platform_id'].isin(st.session_state.source)]
+
+            if len(st.session_state.campaign) != 0:
+                filtered_df = filtered_df[filtered_df['campaign_name'].isin(st.session_state.campaign)]
+            if  filtered_df.empty:
+                st.error("Please check filters - Selected platform does not have selected campaigns")
+            else:
+                grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
+                    .agg({'spent_amount': 'sum' }).reset_index()
+                campaings_df = grouped.copy()
+                grouped = filtered_df.groupby(['platform_id', 'start_date'])\
+                    .agg({'spent_amount': 'sum' }).reset_index()
+                platform_id_df = grouped.copy()
+
+                with tab1:
+                    fig = px.bar(platform_id_df, x="start_date", y="spent_amount", color="platform_id") #, color="source"
+                    
+                    fig.update_layout(
+                        xaxis_title='Date',
+                        yaxis_title='Expenses',
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                with tab2:
+                    fig = px.bar(campaings_df, x="start_date", y="spent_amount", color="campaign_name") #, color="source"
+                    
+                    fig.update_layout(
+                        xaxis_title='Date',
+                        yaxis_title='Expenses'
+                        
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+        except URLError as e:
+            st.error()    
+
+            # try:
+            #     fruit_choice = st.text_input('What fruit would you like information about?')
+            #     if not fruit_choice:
+            #         st.error("Please select a fruit to get information.")
+            #     else:
+            #         data= get_fruityvice_data(fruit_choice)
+            #         st.dataframe(data)
+            #     #streamlit.write('The user entered ', fruit_choice)
+            # except URLError as e:
+            # st.error()
