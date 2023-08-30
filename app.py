@@ -23,7 +23,7 @@ from datetime import date
 from datetime import timedelta
 import plotly.graph_objects as go
 from urllib.error import URLError
-import snowflake.connector 
+#import snowflake.connector 
 pd.options.mode.chained_assignment = None  # default='warn'
 
 from my_package.style import css_style
