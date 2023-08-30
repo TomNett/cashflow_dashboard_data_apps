@@ -35,6 +35,13 @@ from my_package.style import css_style, apply_css
 from my_package.html import html_code, html_footer, title
 
 
+def delete_row_from_df(df, index):
+    if df.empty:
+        return df.reset_index(drop=True)
+    else:
+        return df.drop(index, inplace=True).reset_index(drop=True)
+
+
 
 st.set_page_config(layout="wide")
 #file_path = "/data/in/tables/input_table.csv"
@@ -555,17 +562,36 @@ elif app_mode == 'Campaigns':
 
                 col1, col2 = st.columns(2)
                     # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
-
-                col1.write(session_state.row.transpose())
-                if col2.button("Add Row"):
+                
+                col1.subheader("You entered these data: ")
+                col1.table(session_state.row)
+                
+                col21, col22,col23, col24, col25 = col1.columns((1.5,1.5,1.5,1.5,5), gap="small")
+                if col21.button("Add Row"):
                     session_state.df.loc[len(session_state.df)] = session_state.row
                     session_state.row = pd.Series(index=columns)
+                if col22.button("Change Row", key='rowchange'):
+                    #TODO
+                    print('Hi')
+                if col23.button("Delete Row",key="deleterow"):
+                    col11, col12 = col1.columns(2)
+                    col11.warning("🚨 Specify row you want to be deleted")
+                    index_to_delete = col11.number_input('ID of row', value=0)
+                    
+                    if "delete_pressed" not in session_state:
+                        session_state.delete_pressed = False
 
-                if col2.button("Clear DF"):
+                    if col11.button("Delete", key="deleter"):
+                        session_state.delete_pressed = True
+
+                    if session_state.delete_pressed:
+                        session_state.df = delete_row_from_df(session_state.df, index_to_delete)
+                        session_state.delete_pressed = False  
+                if col24.button("Clear DF"):
                     session_state.df = empty_df
-
-                # Display the resulting dataframe
-                col1.dataframe(session_state.df)                        
+                col1.header("Budgets and their limits")
+                col1.table(session_state.df)
+                                        
         except URLError as e:
             st.error()
 
@@ -573,10 +599,10 @@ elif app_mode == 'Campaigns':
         
 
         
-        budget = {'Budget ID': [1, 2], 'Value': [1000, 450]}
-        budget_df = pd.DataFrame(data = budget)
-        st.header("Budgets and their limits")
-        st.data_editor(budget_df, num_rows="static")
+        
+        
+        #st.dataframe(session_state.df)
+        #st.data_editor(budget_df, num_rows="static")
     
 
 
@@ -589,7 +615,9 @@ elif app_mode == 'Campaigns':
     spend_current_month = round(np.sum(filtered_df["spent_amount"]),2)
     spend_last_month = round(np.sum(df_last_month["spent_amount"]),2)
 
-    
+    #Dummy df for representation
+    data = {"Client" :["MOL"], "Budget":[1500,], "Campaign":[["FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"]]}
+    df_dummy = pd.DataFrame(data)
     
         
     with st.container():
@@ -612,7 +640,7 @@ elif app_mode == 'Campaigns':
                     )
             # Create two columns for filter controls
             col1, col2 = st.columns((1.5, 3), gap="large")
-        
+
             
             with col1:
                 col11, col22, col33 = st.columns((1, 2.5, 1.5), gap="small")
