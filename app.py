@@ -1,18 +1,22 @@
-#TODO = csv read budgets and show over the limit 
-#TODO utracena % z kamp
-#TODO filter per client  - not possible 
-#TODO campaign page 
-#TODO Vypocet budgetu pro kampan
-# TODO spend analysis + alerts  
 # TODO Filter per mesic ( na konec mesice )
+# TODO filter per client 
+# TODO client and budget ( editace)
 # TODO filters depending on tabs of page 
+# TODO utracena % z kamp
+# TODO tabulka budget kterou nalinkuju na kampani
+
+# TODO = csv read budgets and show over the limit 
+# TODO scenare pro kampan  - pridat ?
+# TODO Vypocet budgetu pro kampan - not needed 
 # TODO add columns in snowflake corresponding to client for a futher filtration
+
 # mesice a vypotrebovany budget 
 # pak bude analyza konkrenti kampani 
-# scenare pro kampan  - pridat ?
+
 
 
 import streamlit as st
+import calendar
 import pandas as pd
 import numpy as np
 import os
@@ -23,6 +27,7 @@ from datetime import date
 from datetime import timedelta
 import plotly.graph_objects as go
 from urllib.error import URLError
+import arrow 
 #import snowflake.connector 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -64,6 +69,7 @@ default = {
         'source': [],
         'campaign': []
         }
+months_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 if app_mode=='Analytics':
     st.title('Analytical page')
@@ -110,7 +116,7 @@ if app_mode=='Analytics':
             filtered_df = filtered_df[filtered_df['campaign_name'].isin(st.session_state.campaign)]
 
         st.markdown(title["charts"], unsafe_allow_html=True)
-        tab1, tab2, tab3, tab4 = st.tabs(["Best performing Campaigns","Visualizations per Campaigns","Visualizations per platform_id", "Raw data"])
+        tab1, tab2, tab3 = st.tabs(["Best performing Campaigns","Visualizations per Campaigns","Raw data" ])
         grouped = filtered_df.groupby(['campaign_name', 'start_date']).agg({'link_clicks': 'sum', 'impressions': 'sum'}).reset_index()
         grouped['ctr'] = (grouped['link_clicks'] / grouped['impressions']) * 100
         campaings_df = grouped.copy()
@@ -174,7 +180,7 @@ if app_mode=='Analytics':
             # fig = px.bar(campaings_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
             fig.update_layout(xaxis_title='Date', yaxis_title='impressions')
             # # Display the bar chart
-            st.plotly_chart(fig, use_container_width=False)
+            st.plotly_chart(fig, use_container_width=True)
 
             # Clicks
             st.markdown(title["clicks"], unsafe_allow_html=True)
@@ -258,7 +264,7 @@ elif app_mode == 'Expenses':
         spend_current_month = round(np.sum(df_current_month["spent_amount"]),2)
         spend_last_month = round(np.sum(df_last_month["spent_amount"]),2) #TODO
         current_month_name = datetime.datetime.now().strftime("%B")
-        months_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        
         if len(st.session_state.source) != 0:
             df_filtered_months = df_filtered_months[df_filtered_months['platform_id'].isin(st.session_state.source)]
 
@@ -272,7 +278,7 @@ elif app_mode == 'Expenses':
         # Column 1 
        
 
-        target_value = col1.number_input('Target Spend Amount')  
+        #target_value = col1.number_input('Target Spend Amount')  
         col1.metric("Spend this month", str(spend_current_month) + ' EUR')#TODO - devision by 0 , str(spend_current_month/spend_current_month)
 
         # Initialize the figure
@@ -302,10 +308,10 @@ elif app_mode == 'Expenses':
                                 yaxis_title='Month',
                                 showlegend=False)
 
-                fig.add_shape(type="line", 
-                            x0=target_value, y0=0, x1=target_value, y1=1,
-                            line=dict(color='rgb(64, 224, 208)', width=3),
-                            xref='x', yref='paper')
+                # fig.add_shape(type="line", 
+                #             x0=target_value, y0=0, x1=target_value, y1=1,
+                #             line=dict(color='rgb(64, 224, 208)', width=3),
+                #             xref='x', yref='paper')
         
                 col1.plotly_chart(fig, use_container_width=True)
         except URLError as e:
@@ -315,7 +321,7 @@ elif app_mode == 'Expenses':
         
         platform_id_spend = df_current_month.groupby(['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
 
-        target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')  
+        #target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')  
         col2.metric("Average Spend By platform_id", str(round(np.mean(platform_id_spend["spent_amount"]),2)) + ' EUR') 
 
 
@@ -337,10 +343,10 @@ elif app_mode == 'Expenses':
                                 yaxis_title='',
                                 showlegend=False)
 
-        fig_spend.add_shape(type="line", 
-                            x0=target_value_platform_id, y0=0, x1=target_value_platform_id, y1=1,
-                            line=dict(color='rgb(64, 224, 208)', width=6),
-                            xref='x', yref='paper')
+        # fig_spend.add_shape(type="line", 
+        #                     x0=target_value_platform_id, y0=0, x1=target_value_platform_id, y1=1,
+        #                     line=dict(color='rgb(64, 224, 208)', width=6),
+        #                     xref='x', yref='paper')
 
 
 
@@ -439,51 +445,86 @@ elif app_mode == 'Expenses':
 
 
 elif app_mode == 'Campaigns':
+
+    
     with st.container():
         col1, col2, col3 = st.columns(3,gap="small")
         with col2:
             st.title("Campaigns overview")
 
+    with st.expander("Show budget settings"):
+        #df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
+        col1, col2= st.columns(2,gap="small")
+        col11,col12 = st.columns((1.5, 1.5))
+
+        col1, col2, col3 = st.columns((2, 1, 1))
+    
+    
+        df['month_name'] = pd.DatetimeIndex(df['start_date']).strftime("%B")
+        current_month_name = datetime.datetime.now().strftime("%B")
+        
+    # with col1:
+    #     since_date = st.date_input("Select a start date:",
+    #                 datetime.date(current_year, current_month-3, 1), key="since_date")
+        
+    #         # Create filter controls for source and campaign selection in the second column
+    # with col2:
+    #     until_date = st.date_input("Select an end date:",
+    #                 datetime.date(current_year, current_month, current_day), key="until_date")
+        
+        
+        #############################
+        ######## Filters ############
+        #############################
+
+        try:
+            with col11:
+                st.header("Filters: ") 
+                selected_month = st.selectbox('Select month:',
+                    months_order,  placeholder="All months", key="month")
+                
+                day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_month, '%B').month)[1]
+                last_d = str(day_count) + ' ' + selected_month + ', 2023'
+                first_d = '1 ' + selected_month + ', 2023'
+                
+                
+            if len(st.session_state.month) != 0:           
+                #filtered_df = df[(df['month_name'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
+                filtered_df = df[(df['start_date'] >= arrow.get(first_d,'D MMMM, YYYY').format('YYYY-MM-DD')) & (df['start_date'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
+            
+            with col11:
+                selected_sources = st.multiselect('Select a platform_id:',
+                    distinct_source, default=None, placeholder="All platform_ids", key="source")
+            if not selected_sources:
+                col11.error("Please select a platform.")
+            else:
+                if len(st.session_state.source) != 0:
+                    filtered_df = filtered_df[filtered_df['platform_id'].isin(st.session_state.source)]
+                    
+                    distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()       
+                with col11:
+                    selected_campaigns = st.multiselect('Select a campaign:',
+                        distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
+    
+        except URLError as e:
+            st.error()
+        st.dataframe(filtered_df)
+        budget = {'Budget ID': [1, 2], 'Value': [1000, 450]}
+        budget_df = pd.DataFrame(data = budget)
+        st.header("Budgets and their limits")
+        st.data_editor(budget_df, num_rows="static")
+    
+
+
     #filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
-    df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
+    
     df_last_month = df[(df['start_date'] >= (current_date - timedelta(days=60))) & (df['start_date'] <= (current_date - timedelta(days=60)))]#TODO change to current month
     df_filtered_months = df[(df['start_date'] >= (current_date - timedelta(days=150))) & (df['start_date'] <= current_date)]
     df_filtered_months["month_column"]  = df_filtered_months.start_date.dt.month
     df_filtered_months["month_name"]  = df_filtered_months.start_date.dt.strftime("%B")
-    spend_current_month = round(np.sum(df_current_month["spent_amount"]),2)
+    spend_current_month = round(np.sum(filtered_df["spent_amount"]),2)
     spend_last_month = round(np.sum(df_last_month["spent_amount"]),2)
 
-    st.header("Filters: ") 
-    col1, col2 = st.columns((1.5, 1.5))
-    col11,col12 = st.columns((1.5, 1.5))
-    with col1:
-        since_date = st.date_input("Select a start date:",
-                    datetime.date(current_year, current_month-3, 1), key="since_date")
-        
-            # Create filter controls for source and campaign selection in the second column
-    with col2:
-        until_date = st.date_input("Select an end date:",
-                    datetime.date(current_year, current_month, current_day), key="until_date")
-                
-    
-    try:
-        with col11:
-            selected_sources = st.multiselect('Select a platform_id:',
-                    distinct_source, default=None, placeholder="All platform_ids", key="source")
-        if not selected_sources:
-            st.error("Please select a platform.")
-        else:
-            if len(st.session_state.source) != 0:
-                df_current_month = df_current_month[df_current_month['platform_id'].isin(st.session_state.source)]
-                    
-                distinct_campaigns_by_platform = df_current_month['campaign_name'].unique()       
-            with col12:
-                selected_campaigns = st.multiselect('Select a campaign:',
-                    distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
-    #streamlit.write('The user entered ', fruit_choice)
-    except URLError as e:
-        st.error()
-    
     
     
         
@@ -533,10 +574,14 @@ elif app_mode == 'Campaigns':
                 col1.plotly_chart(fig, use_container_width=True)
             with col2:
                 fig_spend = go.Figure()
-                df_current_month  = df_current_month[(df_current_month[['spent_amount','impressions','cpm']] != 0).all(axis=1)]
+                df_current_month  = filtered_df[(filtered_df[['spent_amount','impressions','cpm']] != 0).all(axis=1)]
                 platform_id_spend = df_current_month.groupby(['platform_id']).agg({'spent_amount': 'sum','cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending = True)
-                 
-                max_spend = max(platform_id_spend["spent_amount"])
+                
+                if platform_id_spend["spent_amount"].empty:
+                    max_spend = 0
+                else:
+                    max_spend = max(platform_id_spend["spent_amount"])
+                
                 
                 col11, col22 = st.columns((1.8,1.5))
                 with col11:
@@ -564,6 +609,18 @@ elif app_mode == 'Campaigns':
                 with col22:
                     platform_id_spend["spent_amount"] = round(platform_id_spend["spent_amount"],2)
                     st.table(platform_id_spend.rename(columns={"platform_id": "Platform", "spent_amount": "Spendings", "cpm": "CPM"}).sort_values(by='Spendings', ascending = False))
+    #with st.container():
+    
+
+    
+
+    
+    
+    
+
+    st.dataframe(filtered_df.head(5))
+
+    
 
                     
 
