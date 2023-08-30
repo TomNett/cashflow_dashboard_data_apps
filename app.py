@@ -1,4 +1,3 @@
-# TODO Filter per mesic ( na konec mesice )
 # TODO filter per client 
 # TODO client and budget ( editace)
 # TODO filters depending on tabs of page 
@@ -31,9 +30,10 @@ import arrow
 #import snowflake.connector 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-from my_package.style import css_style
+from my_package.style import css_style, apply_css
 
 from my_package.html import html_code, html_footer, title
+
 
 
 st.set_page_config(layout="wide")
@@ -451,7 +451,7 @@ elif app_mode == 'Campaigns':
         col1, col2, col3 = st.columns(3,gap="small")
         with col2:
             st.title("Campaigns overview")
-
+    apply_css()
     with st.expander("Show budget settings"):
         #df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
         col1, col2= st.columns(2,gap="small")
@@ -463,25 +463,17 @@ elif app_mode == 'Campaigns':
         df['month_name'] = pd.DatetimeIndex(df['start_date']).strftime("%B")
         current_month_name = datetime.datetime.now().strftime("%B")
         
-    # with col1:
-    #     since_date = st.date_input("Select a start date:",
-    #                 datetime.date(current_year, current_month-3, 1), key="since_date")
-        
-    #         # Create filter controls for source and campaign selection in the second column
-    # with col2:
-    #     until_date = st.date_input("Select an end date:",
-    #                 datetime.date(current_year, current_month, current_day), key="until_date")
-        
-        
         #############################
         ######## Filters ############
         #############################
-
+       
         try:
             with col11:
+                #selected_month = datetime.datetime.now().month
                 st.header("Filters: ") 
+                default_ix = months_order.index(datetime.datetime.now().strftime("%B"))
                 selected_month = st.selectbox('Select month:',
-                    months_order,  placeholder="All months", key="month")
+                    months_order, index=default_ix,  placeholder="All months", key="month")
                 
                 day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_month, '%B').month)[1]
                 last_d = str(day_count) + ' ' + selected_month + ', 2023'
@@ -505,10 +497,82 @@ elif app_mode == 'Campaigns':
                 with col11:
                     selected_campaigns = st.multiselect('Select a campaign:',
                         distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
-    
+                # Container for budget df
+                # Define column names for the empty dataframe
+                columns = ["Client", "Value", "Campaings"]
+                # Create an empty dataframe with the defined columns
+                empty_df = pd.DataFrame(columns=columns)
+                # Define a list of people to choose from
+                clients = [
+                        "Červený kříž",
+                        "Yachting - EU",
+                        "WMC GREY",
+                        "Test Filip",
+                        "TOP LEGENDS",
+                        "Světový kurýr",
+                        "Progresus WMC",
+                        "Progresus",
+                        "PRECIOSA Beauty - ecommerce CZ",
+                        "Modryslon.cz",
+                        "MOL",
+                        "Lék na covid",
+                        "Laufen",
+                        "Krásno",
+                        "Jika",
+                        "FIXED",
+                        "Ecoista",
+                        "Airbnb",
+                        "ALPA"
+                    ]
+
+
+
+                # Create an empty session state variable
+                session_state = st.session_state
+                # Check if the session state variable is already defined
+                if "df" not in session_state:
+                    # Assign the initial data to the session state variable
+                    session_state.df = empty_df
+                    session_state.row = pd.Series(index=columns)
+
+                # Create a selectbox for each column in the current row
+                for col in columns:
+                #     # Get unique values from the corresponding column in the resource_data dataframe
+                    if col == "Client":
+                        values = clients
+                        session_state.row[col] = st.selectbox(col, values, key=col)
+                            
+                    elif col == "Value":
+                        session_state.row[col] = st.number_input(col, value = 0)
+                    elif col == "Campaings":  
+                        session_state.row[col] = selected_campaigns
+                    #         values = ["Y", "N"]
+                        # Create a selectbox for the current column and add the selected value to the current row
+                        #index = values.index(session_state.row[col]) if session_state.row[col] in values else 0
+                        #for col in range [1:len(columns)]:
+                        #     session_state.row[col] = st.selectbox(col, values, key=col, index=index)
+                    
+
+                col1, col2 = st.columns(2)
+                    # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
+
+                col1.write(session_state.row.transpose())
+                if col2.button("Add Row"):
+                    session_state.df.loc[len(session_state.df)] = session_state.row
+                    session_state.row = pd.Series(index=columns)
+
+                if col2.button("Clear DF"):
+                    session_state.df = empty_df
+
+                # Display the resulting dataframe
+                col1.dataframe(session_state.df)                        
         except URLError as e:
             st.error()
-        st.dataframe(filtered_df)
+
+
+        
+
+        
         budget = {'Budget ID': [1, 2], 'Value': [1000, 450]}
         budget_df = pd.DataFrame(data = budget)
         st.header("Budgets and their limits")

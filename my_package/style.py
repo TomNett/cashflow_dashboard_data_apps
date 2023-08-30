@@ -1,3 +1,4 @@
+import streamlit as st
 css_style = """
 <style>
      .custom-column {
@@ -80,5 +81,46 @@ css_style = """
     justify-content: center;
 }
 
+
+
 </style>
 """
+def apply_css():
+    css = """
+    /* Base styles for light theme */
+    body {
+        font-family: Arial, sans-serif;
+        color: #231F33;  /* Default text color */
+    }
+
+    /* Expander header */
+    div[data-testid="stExpander"] div[role="button"] {
+        
+        border: 1px solid #ddd;
+        padding: 10px 15px;
+        border-radius: 4px;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s ease;
+    }
+
+    /* Expander header text */
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-size: 1.5rem;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    /* Hover effect for expander header */
+    div[data-testid="stExpander"] div[role="button"]:hover {
+        background-color: #eaeaea;
+    }
+
+    /* Expander content */
+    div[data-testid="stExpander"] div[data-baseweb="collapse"] {
+        border: 1px solid #ddd;
+        border-top: none;
+        padding: 15px;
+        
+    }
+    """
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
