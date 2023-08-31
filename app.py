@@ -30,7 +30,7 @@ from urllib.error import URLError
 #import snowflake.connector 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-from my_package.style import css_style, apply_css
+from my_package.style import apply_css
 
 from my_package.html import html_code, html_footer, title
 
@@ -485,7 +485,7 @@ elif app_mode == 'Campaigns':
                 day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_month, '%B').month)[1]
                 last_d = str(day_count) + ' ' + selected_month + ', 2023'
                 first_d = '1 ' + selected_month + ', 2023'
-            def custom_str_to_date(date_str, format_str='D MMMM, YYYY'):
+            def custom_str_to_date(date_str, format_str='%d %B, %Y'):
                 return datetime.datetime.strptime(date_str, format_str).date()
 
             first_date = custom_str_to_date(first_d)
@@ -496,7 +496,7 @@ elif app_mode == 'Campaigns':
             if len(st.session_state.month) != 0:           
                 #filtered_df = df[(df['month_name'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
                 #filtered_df = df[(df['start_date'] >= arrow.get(first_d,'D MMMM, YYYY').format('YYYY-MM-DD')) & (df['start_date'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
-                filtered_df = df[(df['start_date'] >= first_date) & (df['start_date'] <= last_date)] 
+                filtered_df = df[(df['start_date'] >= pd.to_datetime(first_date)) & (df['start_date'] <= pd.to_datetime(last_date))]
             with col11:
                 selected_sources = st.multiselect('Select a platform_id:',
                     distinct_source, default=None, placeholder="All platform_ids", key="source")
@@ -651,25 +651,53 @@ elif app_mode == 'Campaigns':
             with col1:
                 col11, col22, col33 = st.columns((1, 2.5, 1.5), gap="small")
                 
-                col22.metric("Advertising -  total budget Utilization",str(spend_current_month) + ' EUR')
-                month_budget = 1000 #TODO add input
+                # Sample dataframe
+                data = {'Client': ['MOL', 'WMC'],
+                'Budget': [1500, 1200],
+                'Spend': [1300, 900]}
+                df = pd.DataFrame(data)
+                col1.subheader('Advertising -  total budget Utilization')
+                for _, row in df.iterrows():
+                    spend_current_month = row['Spend']
+                    month_budget = row['Budget']
 
-                   
-                fig = px.bar(x=[spend_current_month],
-                            y=[str(spend_current_month) + ' EUR'],
-                            orientation='h',
-                            labels={'x': 'EUR', 'y': ''})
-                            #title='Average Clickthrough rate')
-                fig.update_layout(xaxis=dict(range=[0, month_budget]),height=200)
-                fig.update_traces(marker_color='rgb(105, 205, 251)')
+                    fig = px.bar(x=[spend_current_month],
+                                y=[row['Client']],
+                                orientation='h',
+                                labels={'x': 'EUR', 'y': ''})
 
-                fig.add_annotation(x=spend_current_month, y='EUR', 
-                                text=f"{spend_current_month/month_budget*100:.2f} %",  # format the number to 2 decimal places
-                                showarrow=False,
-                                height=10,
-                                yshift=10)
+                    fig.update_layout(xaxis=dict(range=[0, month_budget]), height=200)
+                    fig.update_traces(marker_color='rgb(105, 205, 251)')
+
+                    percentage_spend = spend_current_month/month_budget*100
+
+                    fig.add_annotation(x=spend_current_month,
+                                    y=row['Client'],
+                                    text=f"{percentage_spend:.2f}%",
+                                    showarrow=False,
+                                    yshift=10,xshift=30)
+                    
+                    col1.plotly_chart(fig, use_container_width=True)
+
+                # col22.metric("Advertising -  total budget Utilization",str(spend_current_month) + ' EUR')
+                # month_budget = 1000 #TODO add input
                 
-                col1.plotly_chart(fig, use_container_width=True)
+                   
+                # fig = px.bar(x=[spend_current_month],
+                #             y=[str(spend_current_month) + ' EUR'],
+                #             orientation='h',
+                #             labels={'x': 'EUR', 'y': ''})
+                #             #title='Average Clickthrough rate')
+                # fig.update_layout(xaxis=dict(range=[0, month_budget]),height=200)
+                # fig.update_traces(marker_color='rgb(105, 205, 251)')
+
+                # fig.add_annotation(x=spend_current_month, y='EUR', 
+                #                 text=f"{spend_current_month/month_budget*100:.2f} %",  # format the number to 2 decimal places
+                #                 showarrow=False,
+                #                 height=10,
+                #                 yshift=10)
+                
+                # col1.plotly_chart(fig, use_container_width=True)
             with col2:
                 fig_spend = go.Figure()
                 df_current_month  = filtered_df[(filtered_df[['spent_amount','impressions','cpm']] != 0).all(axis=1)]
