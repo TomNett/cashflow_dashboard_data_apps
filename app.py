@@ -486,7 +486,7 @@ elif app_mode == 'Campaigns':
                 last_d = str(day_count) + ' ' + selected_month + ', 2023'
                 first_d = '1 ' + selected_month + ', 2023'
             def custom_str_to_date(date_str, format_str='D MMMM, YYYY'):
-                return datetime.strptime(date_str, format_str).date()
+                return datetime.datetime.strptime(date_str, format_str).date()
 
             first_date = custom_str_to_date(first_d)
             last_date = custom_str_to_date(last_d)
