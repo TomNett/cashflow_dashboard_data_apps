@@ -26,7 +26,7 @@ from datetime import date
 from datetime import timedelta
 import plotly.graph_objects as go
 from urllib.error import URLError
-import arrow 
+#import arrow 
 #import snowflake.connector 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -485,12 +485,18 @@ elif app_mode == 'Campaigns':
                 day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_month, '%B').month)[1]
                 last_d = str(day_count) + ' ' + selected_month + ', 2023'
                 first_d = '1 ' + selected_month + ', 2023'
-                
+            def custom_str_to_date(date_str, format_str='D MMMM, YYYY'):
+                return datetime.strptime(date_str, format_str).date()
+
+            first_date = custom_str_to_date(first_d)
+            last_date = custom_str_to_date(last_d)
+
+   
                 
             if len(st.session_state.month) != 0:           
                 #filtered_df = df[(df['month_name'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
-                filtered_df = df[(df['start_date'] >= arrow.get(first_d,'D MMMM, YYYY').format('YYYY-MM-DD')) & (df['start_date'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
-            
+                #filtered_df = df[(df['start_date'] >= arrow.get(first_d,'D MMMM, YYYY').format('YYYY-MM-DD')) & (df['start_date'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
+                filtered_df = df[(df['start_date'] >= first_date) & (df['start_date'] <= last_date)] 
             with col11:
                 selected_sources = st.multiselect('Select a platform_id:',
                     distinct_source, default=None, placeholder="All platform_ids", key="source")
