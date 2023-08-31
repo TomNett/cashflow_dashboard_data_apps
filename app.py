@@ -276,7 +276,7 @@ elif app_mode == 'Expenses':
                 # Create filter controls for date range in the first column
                 with col1:
                     since_date = st.date_input("Select a start date:",
-                                                datetime.date(current_year, current_month-3, 1), key="since_datecd")
+                                                datetime.date(current_year, current_month-3, 1), key="since_date")
             
                 # Create filter controls for source and campaign selection in the second column
                 with col2:
