@@ -779,7 +779,7 @@ elif app_mode == 'Campaigns':
     
 
     st.dataframe(filtered_df.head(5)) #TODO tabulka nezarazenych kampani
-    st.write(st.session_state)
+
 
     
 
