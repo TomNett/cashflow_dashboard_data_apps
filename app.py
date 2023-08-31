@@ -257,65 +257,76 @@ if app_mode=='Analytics':
         
         
 elif app_mode == 'Expenses':
+    
+                    
     ##################
     # Filter section #
     ##################
     with st.container():
         st.title("Expenses overview")
-        st.sidebar.header("Filters: ")  
-        
+        st.header("Filters: ")  
+        st.session_state.campaigns = distinct_campaigns
         with st.container():
            
-            
-            # Create two columns for filter controls
-            col1, col2 = st.sidebar.columns((1.5, 1.5))
-            col11,col12 = st.sidebar.columns((1.5, 1.5))
+            try: 
+                # Create two columns for filter controls
+                col1, col2 = st.columns((1.5, 1.5))
+                col11,col12 = st.columns((1.5, 1.5))
 
-            # Create filter controls for date range in the first column
-            with col1:
-                since_date = st.sidebar.date_input("Select a start date:",
-                                            datetime.date(current_year, current_month-3, 1), key="since_date")
-        
-            # Create filter controls for source and campaign selection in the second column
-            with col2:
-                until_date = st.sidebar.date_input("Select an end date:",
-                                            datetime.date(current_year, current_month, current_day), key="until_date")
+                # Create filter controls for date range in the first column
+                with col1:
+                    since_date = st.date_input("Select a start date:",
+                                                datetime.date(current_year, current_month-3, 1), key="since_date")
+            
+                # Create filter controls for source and campaign selection in the second column
+                with col2:
+                    until_date = st.date_input("Select an end date:",
+                                                datetime.date(current_year, current_month, current_day), key="until_date")
+                filtered_df = df[(df['start_date'] >= pd.to_datetime(since_date)) &(df['start_date'] <= pd.to_datetime(until_date))
+    ]
+
+                with col11:
+                    selected_sources = st.multiselect('Select Platform',
+                                                    distinct_source, default=distinct_source, placeholder="Select  platforms from the list", key="source")
+                if not selected_sources: 
+                    col12.error("Please select a platform.")
+                else:     
+                    if len(st.session_state.source) != 0:
+                        filtered_df = filtered_df[filtered_df['platform_id'].isin(st.session_state.source)]
+                        distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
+                        with col12:
+                            selected_campaigns = st.multiselect('Select a campaign:',
+                                                            distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
+            
                 
-            with col11:
-                selected_sources = st.sidebar.multiselect('Select a platform_id:',
-                                                distinct_source, default=None, placeholder="All platform_ids", key="source")
-            
-            with col12:
-                selected_campaigns = st.sidebar.multiselect('Select a campaign:',
-                                                    distinct_campaigns, default=None, placeholder="All campaigns", key="campaign") 
-        
-        since_date = pd.Timestamp(st.session_state.since_date)
-        until_date = pd.Timestamp(st.session_state.until_date)
-        filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
+                since_date = pd.Timestamp(st.session_state.since_date)
+                until_date = pd.Timestamp(st.session_state.until_date)
+                filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
 
-        ###################
-        # Metrics section #
-        ###################
-        
-        
-        
-        #Columns and data creation
+                ###################
+                # Metrics section #
+                ###################
+                
+                
+                
+                #Columns and data creation
 
-        df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
-        df_last_month = df[(df['start_date'] >= (current_date - timedelta(days=60))) & (df['start_date'] <= (current_date - timedelta(days=60)))]#TODO change to current month
-        df_filtered_months = df[(df['start_date'] >= (current_date - timedelta(days=150))) & (df['start_date'] <= current_date)]
-        df_filtered_months["month_column"]  = df_filtered_months.start_date.dt.month
-        df_filtered_months["month_name"]  = df_filtered_months.start_date.dt.strftime("%B")
-        spend_current_month = round(np.sum(df_current_month["spent_amount"]),2)
-        spend_last_month = round(np.sum(df_last_month["spent_amount"]),2) #TODO
-        current_month_name = datetime.datetime.now().strftime("%B")
-        
-        if len(st.session_state.source) != 0:
-            df_filtered_months = df_filtered_months[df_filtered_months['platform_id'].isin(st.session_state.source)]
-
-        if len(st.session_state.campaign) != 0:
-            df_filtered_months = df_filtered_months[df_filtered_months['campaign_name'].isin(st.session_state.campaign)]
-        
+                df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
+                df_last_month = df[(df['start_date'] >= (current_date - timedelta(days=60))) & (df['start_date'] <= (current_date - timedelta(days=60)))]#TODO change to current month
+                df_filtered_months = df[(df['start_date'] >= (current_date - timedelta(days=150))) & (df['start_date'] <= current_date)]
+                df_filtered_months["month_column"]  = df_filtered_months.start_date.dt.month
+                df_filtered_months["month_name"]  = df_filtered_months.start_date.dt.strftime("%B")
+                spend_current_month = round(np.sum(df_current_month["spent_amount"]),2)
+                spend_last_month = round(np.sum(df_last_month["spent_amount"]),2) #TODO
+                current_month_name = datetime.datetime.now().strftime("%B")
+                if len(st.session_state.source) != 0:
+                    df_filtered_months = df_filtered_months[df_filtered_months['platform_id'].isin(st.session_state.source)]
+                
+                if (len(st.session_state.campaign) != 0):
+                    df_filtered_months = df_filtered_months[df_filtered_months['campaign_name'].isin(st.session_state.campaign)]
+                
+            except URLError as e:
+                    st.error()
         # Columns for metrics 
 
         col1, col2 = st.columns(2)
@@ -397,56 +408,7 @@ elif app_mode == 'Expenses':
 
         col2.plotly_chart(fig_spend, use_container_width=True)
 
-        # Column 3  - Campaigns abobve the budget, where budget comes from csv file #TODO
-       
-        #campaign_limit = st.number_input('Set a campaign limit')
-        campains_grouped_budget = df_current_month.groupby(['campaign_name']).agg({'spent_amount': 'sum'}).reset_index() 
-        campains_grouped_budget["budget"] = np.nan
-        edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
-        campaigns_above_budget = edited_df[edited_df['spent_amount'] > edited_df['budget']]
         
-        col1, col2 = st.columns(2)
-        
-        col1.metric("Number of campaigns above the limit ", '❗' + str(campaigns_above_budget.shape[0]) + ' Campaigns above budget') #TODO 
-        col1.write(campaigns_above_budget.rename(columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
-
-        if col1.button('Generate plot'):
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                y=campaigns_above_budget['campaign_name'],
-                x=campaigns_above_budget['spent_amount'],
-                orientation='h',
-                name='Cost',
-                marker_color='red',
-                text=campaigns_above_budget['spent_amount'], # <-- Add text values here
-                textposition='outside'
-            ))
-
-            # Add Budget bars
-            fig.add_trace(go.Bar(
-                y=campaigns_above_budget['campaign_name'],
-                x=campaigns_above_budget['budget'],
-                orientation='h',
-                name='Budget',
-                marker_color='blue',
-                text=campaigns_above_budget['budget'], # <-- Add text values here
-                textposition='outside' # <-- Specify text position
-            ))
-
-            # Update layout
-            fig.update_layout(
-                title='Campaign Cost vs Budget',
-                xaxis_title='Value',
-                yaxis_title='Campaign Name',
-                barmode='group'
-            )
-
-
-            
-            col2.plotly_chart(fig, use_container_width=True)
-
-
-
         ####################
         # Charts  sections #
         ####################
@@ -490,7 +452,6 @@ elif app_mode == 'Expenses':
 
 
 elif app_mode == 'Campaigns':
-
     
     with st.container():
         col1, col2, col3 = st.columns(3,gap="small")
@@ -545,19 +506,20 @@ elif app_mode == 'Campaigns':
                     distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
                     col11.subheader('Budget editing :')       
                      
+
+                currency_distinct = ["EUR", "CZK", "USD"]
+
+
                 # Container for budget df
                 # Define column names for the empty dataframe
                 columns = ["Client","Budget", "Budget amount","Currency","Since date", "Until date", "Campaings"]
                 # Create an empty dataframe with the defined columns
                 empty_df = pd.DataFrame(columns=columns)
-                # Define a list of people to choose from
-
-                currency_distinct = ["EUR", "CZK", "USD"]
-
-
+            
                 # Create an empty session state variable
                 session_state = st.session_state
                 # Check if the session state variable is already defined
+                
                 if "df" not in session_state:
                     # Assign the initial data to the session state variable
                     session_state.df = empty_df
@@ -758,16 +720,66 @@ elif app_mode == 'Campaigns':
                 with col22:
                     platform_id_spend["spent_amount"] = round(platform_id_spend["spent_amount"],2)
                     st.table(platform_id_spend.rename(columns={"platform_id": "Platform", "spent_amount": "Spendings", "cpm": "CPM"}).sort_values(by='Spendings', ascending = False))
-    #with st.container():
+    
     
 
-    
+    # Column 3  - Campaigns abobve the budget, where budget comes from csv file #TODO
+    with st.container():   
+        #campaign_limit = st.number_input('Set a campaign limit')
+        campains_grouped_budget = df_current_month.groupby(['campaign_name']).agg({'spent_amount': 'sum'}).reset_index() 
+        campains_grouped_budget["budget"] = np.nan
+        edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
+        campaigns_above_budget = edited_df[edited_df['spent_amount'] > edited_df['budget']]
+        
+        col1, col2 = st.columns(2)
+        
+        col1.metric("Number of campaigns above the limit ", '❗' + str(campaigns_above_budget.shape[0]) + ' Campaigns above budget') #TODO 
+        col1.write(campaigns_above_budget.rename(columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
+
+        if col1.button('Generate plot'):
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=campaigns_above_budget['campaign_name'],
+                x=campaigns_above_budget['spent_amount'],
+                orientation='h',
+                name='Cost',
+                marker_color='red',
+                text=campaigns_above_budget['spent_amount'], # <-- Add text values here
+                textposition='outside'
+            ))
+
+            # Add Budget bars
+            fig.add_trace(go.Bar(
+                y=campaigns_above_budget['campaign_name'],
+                x=campaigns_above_budget['budget'],
+                orientation='h',
+                name='Budget',
+                marker_color='blue',
+                text=campaigns_above_budget['budget'], # <-- Add text values here
+                textposition='outside' # <-- Specify text position
+            ))
+
+            # Update layout
+            fig.update_layout(
+                title='Campaign Cost vs Budget',
+                xaxis_title='Value',
+                yaxis_title='Campaign Name',
+                barmode='group'
+            )
+
+
+            
+            col2.plotly_chart(fig, use_container_width=True)
+
+
+
 
     
     
     
 
     st.dataframe(filtered_df.head(5)) #TODO tabulka nezarazenych kampani
+    st.write(st.session_state)
 
     
 
