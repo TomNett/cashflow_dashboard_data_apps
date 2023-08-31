@@ -1,3 +1,4 @@
+# TODO Dispaly only campaigns, which are not selected 
 # TODO filter per client 
 # TODO client and budget ( editace)
 # TODO filters depending on tabs of page 
@@ -41,6 +42,19 @@ def delete_row_from_df(df, index):
     else:
         return df.drop(index, inplace=True).reset_index(drop=True)
 
+# Functions get unique years form source data   
+def get_years(df):
+    years = []
+    df['start_date'] = pd.to_datetime(df['start_date'])
+    return df["start_date"].dt.year.drop_duplicates()
+# Functions creates list of months and years form source data   
+def create_month_year_list(m_ord, df):
+    y_dist = get_years(df)
+    month_year_list = []
+    for y in y_dist:
+        for m in m_ord:
+            month_year_list.append(str(y) + '-'+ str(m))
+    return month_year_list
 
 
 st.set_page_config(layout="wide")
@@ -68,6 +82,30 @@ current_month = datetime.datetime.now().month
 current_year = datetime.datetime.now().year
 current_day = datetime.datetime.now().day
 current_date = pd.to_datetime(date.today().strftime('%Y-%m-%d'))
+current_month_name = datetime.datetime.now().strftime("%B")
+current_year_month =str(current_year)  + '-' + current_month_name
+
+months_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+month_year_list = create_month_year_list(months_order, df)
+
+dates = [datetime.datetime.strptime(date, '%Y-%B') for date in month_year_list]
+
+# Separate the list by year
+dates_2022 = sorted([date for date in dates if date.year == 2022])
+dates_2023 = sorted([date for date in dates if date.year == 2023])
+
+# Find the index of the current month and year in the 2023 list
+current_index = dates_2023.index(datetime.datetime(2023, 8, 1))  # 2023-August
+
+# Reorder the 2023 list
+ordered_dates_2023 = dates_2023[:current_index + 1] + dates_2023[current_index + 1:]
+
+# Concatenate the lists
+ordered_dates = dates_2022 + ordered_dates_2023
+
+# Convert back to the original string format
+ordered_list_year_month = [date.strftime('%Y-%B') for date in ordered_dates]
 
 # Define default filter values
 default = {
@@ -76,7 +114,7 @@ default = {
         'source': [],
         'campaign': []
         }
-months_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
 
 if app_mode=='Analytics':
     st.title('Analytical page')
@@ -479,12 +517,12 @@ elif app_mode == 'Campaigns':
                 #selected_month = datetime.datetime.now().month
                 st.header("Filters: ") 
                 default_ix = months_order.index(datetime.datetime.now().strftime("%B"))
-                selected_month = st.selectbox('Select month:',
-                    months_order, index=default_ix,  placeholder="All months", key="month")
+                selected_year_month = st.selectbox('Select Year and Month:',
+                    ordered_list_year_month, index=default_ix,  placeholder="All months", key="month")
                 
-                day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_month, '%B').month)[1]
-                last_d = str(day_count) + ' ' + selected_month + ', 2023'
-                first_d = '1 ' + selected_month + ', 2023'
+                day_count = calendar.monthrange(2023, datetime.datetime.strptime(selected_year_month[5:], '%B').month)[1]
+                last_d = str(day_count) + ' ' + selected_year_month[5:] + ', ' + selected_year_month[:4]
+                first_d = '1 ' + selected_year_month[5:] + ', 2023'
             def custom_str_to_date(date_str, format_str='%d %B, %Y'):
                 return datetime.datetime.strptime(date_str, format_str).date()
 
@@ -494,50 +532,27 @@ elif app_mode == 'Campaigns':
    
                 
             if len(st.session_state.month) != 0:           
-                #filtered_df = df[(df['month_name'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
-                #filtered_df = df[(df['start_date'] >= arrow.get(first_d,'D MMMM, YYYY').format('YYYY-MM-DD')) & (df['start_date'] <= arrow.get(last_d,'D MMMM, YYYY').format('YYYY-MM-DD'))]
                 filtered_df = df[(df['start_date'] >= pd.to_datetime(first_date)) & (df['start_date'] <= pd.to_datetime(last_date))]
             with col11:
-                selected_sources = st.multiselect('Select a platform_id:',
-                    distinct_source, default=None, placeholder="All platform_ids", key="source")
+                selected_sources = st.multiselect('Select Platform:',
+                    distinct_source, default=distinct_source, placeholder="All platform_ids", key="source")
             if not selected_sources:
                 col11.error("Please select a platform.")
             else:
                 if len(st.session_state.source) != 0:
                     filtered_df = filtered_df[filtered_df['platform_id'].isin(st.session_state.source)]
                     
-                    distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()       
-                with col11:
-                    selected_campaigns = st.multiselect('Select a campaign:',
-                        distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
+                    distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
+                    col11.subheader('Budget editing :')       
+                     
                 # Container for budget df
                 # Define column names for the empty dataframe
-                columns = ["Client", "Value", "Campaings"]
+                columns = ["Client","Budget", "Budget amount","Currency","Since date", "Until date", "Campaings"]
                 # Create an empty dataframe with the defined columns
                 empty_df = pd.DataFrame(columns=columns)
                 # Define a list of people to choose from
-                clients = [
-                        "Červený kříž",
-                        "Yachting - EU",
-                        "WMC GREY",
-                        "Test Filip",
-                        "TOP LEGENDS",
-                        "Světový kurýr",
-                        "Progresus WMC",
-                        "Progresus",
-                        "PRECIOSA Beauty - ecommerce CZ",
-                        "Modryslon.cz",
-                        "MOL",
-                        "Lék na covid",
-                        "Laufen",
-                        "Krásno",
-                        "Jika",
-                        "FIXED",
-                        "Ecoista",
-                        "Airbnb",
-                        "ALPA"
-                    ]
 
+                currency_distinct = ["EUR", "CZK", "USD"]
 
 
                 # Create an empty session state variable
@@ -547,54 +562,62 @@ elif app_mode == 'Campaigns':
                     # Assign the initial data to the session state variable
                     session_state.df = empty_df
                     session_state.row = pd.Series(index=columns)
-
-                # Create a selectbox for each column in the current row
+                
+                 # Create a selectbox for each column in the current row
                 for col in columns:
                 #     # Get unique values from the corresponding column in the resource_data dataframe
                     if col == "Client":
-                        values = clients
-                        session_state.row[col] = st.selectbox(col, values, key=col)
+                        session_state.row[col] = col11.text_input(col, '',placeholder ='Enter a client name', key=col)
                             
-                    elif col == "Value":
-                        session_state.row[col] = st.number_input(col, value = 0)
-                    elif col == "Campaings":  
-                        session_state.row[col] = selected_campaigns
-                    #         values = ["Y", "N"]
-                        # Create a selectbox for the current column and add the selected value to the current row
-                        #index = values.index(session_state.row[col]) if session_state.row[col] in values else 0
-                        #for col in range [1:len(columns)]:
-                        #     session_state.row[col] = st.selectbox(col, values, key=col, index=index)
+                    elif col == "Budget":
+                        session_state.row[col] = col11.text_input(col, '',placeholder ='Enter a budget name', key=col)
+
+                    elif col == "Budget amount":
+                        session_state.row[col] = col11.number_input(col, value = 1000)
+                    elif col == "Currency":
+                        session_state.row[col] = col11.selectbox(col, currency_distinct, index = 0, key='currency_budget')
+                    elif col == "Since date":
+                        session_state.row[col] = col11.date_input("Select a start date for budget:",
+                        datetime.date(current_year, current_month-1, 1), key="since_date_budget")
+                    elif col == "Until date":
+                        session_state.row[col] = col11.date_input("Select a start date for budget:",
+                        datetime.date(current_year, current_month, current_day), key="until_date_budget")    
+                    elif col == "Campaings":
+                        session_state.row[col] = col11.multiselect('Select a campaign:',
+                            distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign")  
+                        
+                    
                     
 
                 col1, col2 = st.columns(2)
                     # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
-                
-                col1.subheader("Budget editing : ")
-                col1.table(session_state.row)
-                
-                col21, col22,col23, col24, col25 = col1.columns((1.5,1.5,1.5,1.5,5), gap="small")
-                if col21.button("Add Row"):
-                    session_state.df.loc[len(session_state.df)] = session_state.row
-                    session_state.row = pd.Series(index=columns)
-                if col22.button("Change Row", key='rowchange'):
-                    #TODO
-                    print('Hi')
-                if col23.button("Delete Row",key="deleterow"):
-                    col11, col12 = col1.columns(2)
-                    col11.warning("🚨 Specify row you want to be deleted")
-                    index_to_delete = col11.number_input('ID of row', value=0)
+                with col12:
+                    st.subheader("Entered data preview  : ")
+                    st.table(session_state.row)
                     
-                    if "delete_pressed" not in session_state:
-                        session_state.delete_pressed = False
+                    col21, col22,col23, col24, col25 = st.columns((0.3,0.3,0.3,0.3,0.8), gap="small")
+                    if col21.button("Add Row"):
+                        session_state.df.loc[len(session_state.df)] = session_state.row
+                        session_state.row = pd.Series(index=columns)
+                    if col22.button("Change Row", key='rowchange'):
+                        #TODO
+                        print('Hi')
+                    if col23.button("Delete Row",key="deleterow"):
+                        col11, col12 = st.columns(2)
+                        col11.warning("🚨 Specify row you want to be deleted")
+                        index_to_delete = col11.number_input('ID of row', value=0)
+                        
+                        if "delete_pressed" not in session_state:
+                            session_state.delete_pressed = False
 
-                    if col11.button("Delete", key="deleter"):
-                        session_state.delete_pressed = True
+                        if col11.button("Delete", key="deleter"):
+                            session_state.delete_pressed = True
 
-                    if session_state.delete_pressed:
-                        session_state.df = delete_row_from_df(session_state.df, index_to_delete)
-                        session_state.delete_pressed = False  
-                if col24.button("Clear DF"):
-                    session_state.df = empty_df
+                        if session_state.delete_pressed:
+                            session_state.df = delete_row_from_df(session_state.df, index_to_delete)
+                            session_state.delete_pressed = False  
+                    if col24.button("Clear DF"):
+                        session_state.df = empty_df
                 col1.header("Budgets and their limits")
                 col1.table(session_state.df)
                                         
@@ -744,7 +767,7 @@ elif app_mode == 'Campaigns':
     
     
 
-    st.dataframe(filtered_df.head(5))
+    st.dataframe(filtered_df.head(5)) #TODO tabulka nezarazenych kampani
 
     
 
