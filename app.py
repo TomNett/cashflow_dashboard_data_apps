@@ -569,7 +569,7 @@ elif app_mode == 'Campaigns':
                 col1, col2 = st.columns(2)
                     # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
                 
-                col1.subheader("You entered these data: ")
+                col1.subheader("Budget editing : ")
                 col1.table(session_state.row)
                 
                 col21, col22,col23, col24, col25 = col1.columns((1.5,1.5,1.5,1.5,5), gap="small")
