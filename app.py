@@ -276,14 +276,16 @@ elif app_mode == 'Expenses':
                 # Create filter controls for date range in the first column
                 with col1:
                     since_date = st.date_input("Select a start date:",
-                                                datetime.date(current_year, current_month-3, 1), key="since_date")
+                                                datetime.date(current_year, current_month-3, 1), key="since_datecd")
             
                 # Create filter controls for source and campaign selection in the second column
                 with col2:
                     until_date = st.date_input("Select an end date:",
                                                 datetime.date(current_year, current_month, current_day), key="until_date")
-                filtered_df = df[(df['start_date'] >= pd.to_datetime(since_date)) &(df['start_date'] <= pd.to_datetime(until_date))
-    ]
+                since_date = pd.Timestamp(st.session_state.since_date)
+                until_date = pd.Timestamp(st.session_state.until_date)
+                filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
+
 
                 with col11:
                     selected_sources = st.multiselect('Select Platform',
@@ -299,9 +301,7 @@ elif app_mode == 'Expenses':
                                                             distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign") 
             
                 
-                since_date = pd.Timestamp(st.session_state.since_date)
-                until_date = pd.Timestamp(st.session_state.until_date)
-                filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
+                
 
                 ###################
                 # Metrics section #
@@ -317,7 +317,7 @@ elif app_mode == 'Expenses':
                 df_filtered_months["month_column"]  = df_filtered_months.start_date.dt.month
                 df_filtered_months["month_name"]  = df_filtered_months.start_date.dt.strftime("%B")
                 spend_current_month = round(np.sum(df_current_month["spent_amount"]),2)
-                spend_last_month = round(np.sum(df_last_month["spent_amount"]),2) #TODO
+                
                 current_month_name = datetime.datetime.now().strftime("%B")
                 if len(st.session_state.source) != 0:
                     df_filtered_months = df_filtered_months[df_filtered_months['platform_id'].isin(st.session_state.source)]
