@@ -5,7 +5,7 @@
 # TODO utracena % z kamp
 # TODO tabulka budget kterou nalinkuju na kampani
 
-# TODO = csv read budgets and show over the limit
+#
 # TODO scenare pro kampan  - pridat ?
 # TODO Vypocet budgetu pro kampan - not needed
 # TODO add columns in snowflake corresponding to client for a futher filtration
@@ -355,7 +355,7 @@ elif app_mode == 'Expenses':
             except URLError as e:
                 st.error()
         # Columns for metrics
-
+        st.divider()
         col1, col2 = st.columns(2)
 
         # Column 1
@@ -443,7 +443,7 @@ elif app_mode == 'Expenses':
         #                     xref='x', yref='paper')
 
         col2.plotly_chart(fig_spend, use_container_width=True)
-
+        st.divider()
         ####################
         # Charts  sections #
         ####################
@@ -649,62 +649,104 @@ elif app_mode == 'Campaigns':
                         <style>
                             div[data-testid="column"]:nth-of-type(1)
                             {
-                                
-                            } 
+
+                            }
 
                             div[data-testid="column"]:nth-of-type(2)
                             {
                                 margin: auto;
                                 width: 50%;
                                 text-align: center;
-                            } 
+                            }
                         </style>
                         """, unsafe_allow_html=True
         )
-        # Create two columns for filter controls
-        col1, col2 = st.columns((1.5, 3), gap="large")
-        with col1:
-            # selected_month = datetime.datetime.now().month
-            st.header("Filters: ")
 
-            selected_year_month = st.selectbox('Select Year and Month:',
-                                               ordered_list_year_month, index=default_ix,  placeholder="All months", key="month")
+        # Data from snowflake
 
-            if len(st.session_state.month) != 0:
+        data_from_snowflake = {
+            "CLIENT": ["MOL", "WMC", "MOL", "MOL", "WMC", "MOL"],
+            "BUDGET": ["MOL_B1", "WMC_B2", "B3_MOL", "MOL_B1", "WMC_B2", "B3_MOL"],
+            "BUDGET_AMOUNT": [1000, 1200, 1500, 1000, 1200, 1500],
+            "CURRENCY": ["EUR", "EUR", "EUR", "EUR", "EUR", "EUR"],
+            "SINCE_DATE": ["2023-07-12", "2023-06-01", "2023-05-20", "2023-07-12", "2023-06-01", "2023-05-20"],
+            "UNTIL_DATE": ["2023-08-12", "2023-08-01", "2023-08-20", "2023-08-12", "2023-08-01", "2023-08-20"],
+            "CAMPAINGS": [
+                ["TIKTOK-MOL CZ - TT - Follows - 03/2023",
+                    "FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023"],
+                ["LINKEDIN-MOL - link clicks - LI - Provozovatel Kutná Hora - 05/2023",
+                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"],
+                ["LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023", "LINKEDIN-MOL - link clicks - LI - Provozovatel Praha - 05-06/2023",
+                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023"],
+                ["TIKTOK-MOL CZ - TT - Follows - 03/2023",
+                    "FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023"],
+                ["LINKEDIN-MOL - link clicks - LI - Provozovatel Kutná Hora - 05/2023",
+                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"],
+                ["LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023", "LINKEDIN-MOL - link clicks - LI - Provozovatel Praha - 05-06/2023",
+                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023"]
+            ]
+        }
+        data_from_snowflake = pd.DataFrame(data_from_snowflake)
+        data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
+        data_from_snowflake.columns = data_from_snowflake.columns.str.title()
+        st.session_state.dfsnowflake = data_from_snowflake
+        client_list = st.session_state.dfsnowflake["Client"].unique()
+        ##
+
+        # Tabs for visuals
+        tab1, tab2, tab3 = st.tabs(
+            ["Clent overview", "Detailed Budget Examination", "Raw data"])
+        with tab1:
+            # Create two columns for filter controls
+            col1f, col2f = st.columns((1.5, 3))
+            col1.header("Filters: ")
+
+            selected_year_month = col1f.selectbox('Select Year and Month:',
+                                                  ordered_list_year_month, index=default_ix,  placeholder="All months", key="monthfiltercharts")
+
+            selected_client = col2f.multiselect('Select a source:',
+                                                client_list, default=client_list, placeholder="Client", key="clientunique")
+
+            if len(st.session_state.monthfiltercharts) != 0:
                 filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
                     df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
+            st.divider()
+            col1, col2 = st.columns((6, 1), gap="large")
 
-        with col1:
-            col11, col22, col33 = st.columns((1, 2.5, 1.5), gap="small")
+            with col1:
+                df_from_snowflake = st.session_state.dfsnowflake.copy()
+                # budget_by_clietn = df_from_snowflake.groupby(['Client']).agg(
+                # {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
+                # st.write(df_from_snowflake)
 
-            # Sample dataframe
-            data = {'Client': ['MOL', 'WMC'],
-                    'Budget': [1500, 1200],
-                    'Spend': [1300, 900]}
-            df = pd.DataFrame(data)
-            col1.subheader('Advertising -  total budget Utilization')
-            for _, row in df.iterrows():
-                spend_current_month = row['Spend']
-                month_budget = row['Budget']
+                # Sample dataframe
+                data = {'Client': ['MOL', 'WMC'],
+                        'Budget': [1500, 1200],
+                        'Spend': [1300, 900]}
+                df = pd.DataFrame(data)
+                col1.subheader('Current budget situation by Client')
+                for _, row in df.iterrows():
+                    spend_current_month = row['Spend']
+                    month_budget = row['Budget']
 
-                fig = px.bar(x=[spend_current_month],
-                             y=[row['Client']],
-                             orientation='h',
-                             labels={'x': 'EUR', 'y': ''})
+                    fig = px.bar(x=[spend_current_month],
+                                 y=[row['Client']],
+                                 orientation='h',
+                                 labels={'x': 'EUR', 'y': ''})
 
-                fig.update_layout(xaxis=dict(
-                    range=[0, month_budget]), height=200)
-                fig.update_traces(marker_color='rgb(105, 205, 251)')
+                    fig.update_layout(xaxis=dict(
+                        range=[0, month_budget]), height=200)
+                    fig.update_traces(marker_color='rgb(105, 205, 251)')
 
-                percentage_spend = spend_current_month/month_budget*100
+                    percentage_spend = spend_current_month/month_budget*100
 
-                fig.add_annotation(x=spend_current_month,
-                                   y=row['Client'],
-                                   text=f"{percentage_spend:.2f}%",
-                                   showarrow=False,
-                                   yshift=10, xshift=30)
+                    fig.add_annotation(x=spend_current_month,
+                                       y=row['Client'],
+                                       text=f"{percentage_spend:.2f}%",
+                                       showarrow=False,
+                                       yshift=10, xshift=30)
 
-                col1.plotly_chart(fig, use_container_width=True)
+                    col1.plotly_chart(fig, use_container_width=True)
 
             # col22.metric("Advertising -  total budget Utilization",str(spend_current_month) + ' EUR')
             # month_budget = 1000 #TODO add input
@@ -724,21 +766,19 @@ elif app_mode == 'Campaigns':
             #                 yshift=10)
 
             # col1.plotly_chart(fig, use_container_width=True)
-        with col2:
-            fig_spend = go.Figure()
-            df_current_month = filtered_df[(
-                filtered_df[['spent_amount', 'impressions', 'cpm']] != 0).all(axis=1)]
-            platform_id_spend = df_current_month.groupby(['platform_id']).agg(
-                {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
+            with col2:
+                fig_spend = go.Figure()
+                df_current_month = filtered_df[(
+                    filtered_df[['spent_amount', 'impressions', 'cpm']] != 0).all(axis=1)]
+                platform_id_spend = df_current_month.groupby(['platform_id']).agg(
+                    {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
 
-            if platform_id_spend["spent_amount"].empty:
-                max_spend = 0
-            else:
-                max_spend = max(platform_id_spend["spent_amount"])
+                if platform_id_spend["spent_amount"].empty:
+                    max_spend = 0
+                else:
+                    max_spend = max(platform_id_spend["spent_amount"])
 
-            col11, col22 = st.columns((1.8, 1.5))
-            with col11:
-                # Add the bars
+                    # Add the bars
                 for index, row in platform_id_spend.iterrows():
                     fig_spend.add_trace(go.Bar(
                         x=[row['spent_amount']],
@@ -751,20 +791,21 @@ elif app_mode == 'Campaigns':
                             px.colors.qualitative.Plotly)]  # cycling through colors
                     ))
 
-                fig_spend.update_layout(title='Current month expanses by platform',
-                                        xaxis=dict(
-                                            range=[0, max_spend*1.30], title='EUR'),
-                                        yaxis_title='',
-                                        showlegend=False)
+                    # fig_spend.update_layout(title='Current month expanses by platform',
+                    # xaxis = dict(
+                    #     range=[0, max_spend*1.30], title='EUR'),
+                    # yaxis_title = '',
+                    # showlegend = False)
 
-                st.plotly_chart(fig_spend, use_container_width=True)
-            with col22:
-                platform_id_spend["spent_amount"] = round(
-                    platform_id_spend["spent_amount"], 2)
-                st.table(platform_id_spend.rename(columns={
-                         "platform_id": "Platform", "spent_amount": "Spendings", "cpm": "CPM"}).sort_values(by='Spendings', ascending=False))
+                    # st.plotly_chart(fig_spend, use_container_width=True)
+                # with col22:
+                #     platform_id_spend["spent_amount"] = round(
+                #         platform_id_spend["spent_amount"], 2)
+                #     st.table(platform_id_spend.rename(columns={
+                #         "platform_id": "Platform", "spent_amount": "Spendings", "cpm": "CPM"}).sort_values(by='Spendings', ascending=False))
+        st.divider()
 
-    # Column 3  - Campaigns abobve the budget, where budget comes from csv file #TODO
+    # Campaigns abobve the budget, where budget comes from csv file #TODO
     with st.container():
         # campaign_limit = st.number_input('Set a campaign limit')
         campains_grouped_budget = df_current_month.groupby(
