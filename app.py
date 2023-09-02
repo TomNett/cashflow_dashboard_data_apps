@@ -58,6 +58,25 @@ def create_month_year_list(m_ord, df):
     return month_year_list
 
 
+def custom_str_to_date(date_str, format_str='%d %B, %Y'):
+    return datetime.datetime.strptime(date_str, format_str).date()
+
+
+def first_day_month(selected_year_month):
+    first_d = '1 ' + selected_year_month[5:] + ', 2023'
+    first_date = custom_str_to_date(first_d)
+    return first_date
+
+
+def last_day_month(selected_year_month):
+    day_count = calendar.monthrange(2023, datetime.datetime.strptime(
+        selected_year_month[5:], '%B').month)[1]
+    last_d = str(day_count) + ' ' + \
+        selected_year_month[5:] + ', ' + selected_year_month[:4]
+    last_date = custom_str_to_date(last_d)
+    return last_date
+
+
 st.set_page_config(layout="wide")
 # file_path = "/data/in/tables/input_table.csv"
 file_path_local = "data/ads_insight_fact.csv"
@@ -483,14 +502,17 @@ elif app_mode == 'Campaigns':
             st.title("Campaigns overview")
     apply_css()
     with st.expander("Show budget settings"):
+
         # df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
         col1, col2 = st.columns(2, gap="small")
         col11, col12 = st.columns((1.5, 1.5))
 
         col1, col2, col3 = st.columns((2, 1, 1))
+        col11.subheader('Budget editing :')
 
         df['month_name'] = pd.DatetimeIndex(df['start_date']).strftime("%B")
         current_month_name = datetime.datetime.now().strftime("%B")
+        default_ix = months_order.index(current_month_name)
 
         #############################
         ######## Filters ############
@@ -537,7 +559,7 @@ elif app_mode == 'Campaigns':
             elif col == "Until date":
                 session_state.row[col] = col11.date_input("Select a start date for budget:",
                                                           datetime.date(current_year, current_month, current_day), key="until_date_budget")
-            elif col == "Campaings":
+            elif col == "Campaings":  # TODO controll, that cahrts don't show expenses for the ads before the period !
                 try:
 
                     with col11:
@@ -545,16 +567,22 @@ elif app_mode == 'Campaigns':
                                                           distinct_source, default=distinct_source, placeholder="All platform_ids", key="source")
                     if not selected_sources:
                         col11.error("Please select a platform.")
+                        selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
+                                                              ordered_list_year_month, index=default_ix,  placeholder="All months", disabled=True, key="month_camp")
                         session_state.row[col] = col11.multiselect('Select a campaign:',
                                                                    distinct_campaigns, default=None, placeholder="All campaigns", disabled=True,  key="campaign")
                     else:
-                        if len(st.session_state.source) != 0:
-                            df = df[df['platform_id'].isin(
-                                st.session_state.source)]
 
-                            distinct_campaigns_by_platform = df['campaign_name'].unique(
+                        selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
+                                                              ordered_list_year_month, index=default_ix,  placeholder="All months", key="month_camp")
+                        if len(st.session_state.month_camp) != 0:
+                            filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
+                                df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
+                        if len(st.session_state.source) != 0:
+                            filtered_df = filtered_df[filtered_df['platform_id'].isin(
+                                st.session_state.source)]
+                            distinct_campaigns_by_platform = filtered_df['campaign_name'].unique(
                             )
-                        col11.subheader('Budget editing :')
                         session_state.row[col] = col11.multiselect('Select a campaign:',
                                                                    distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign")
                 except URLError as e:
@@ -638,26 +666,14 @@ elif app_mode == 'Campaigns':
         with col1:
             # selected_month = datetime.datetime.now().month
             st.header("Filters: ")
-            default_ix = months_order.index(
-                datetime.datetime.now().strftime("%B"))
+
             selected_year_month = st.selectbox('Select Year and Month:',
                                                ordered_list_year_month, index=default_ix,  placeholder="All months", key="month")
 
-            day_count = calendar.monthrange(2023, datetime.datetime.strptime(
-                selected_year_month[5:], '%B').month)[1]
-            last_d = str(day_count) + ' ' + \
-                selected_year_month[5:] + ', ' + selected_year_month[:4]
-            first_d = '1 ' + selected_year_month[5:] + ', 2023'
-
-            def custom_str_to_date(date_str, format_str='%d %B, %Y'):
-                return datetime.datetime.strptime(date_str, format_str).date()
-
-            first_date = custom_str_to_date(first_d)
-            last_date = custom_str_to_date(last_d)
-
             if len(st.session_state.month) != 0:
-                filtered_df = df[(df['start_date'] >= pd.to_datetime(first_date)) & (
-                    df['start_date'] <= pd.to_datetime(last_date))]
+                filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
+                    df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
+
         with col1:
             col11, col22, col33 = st.columns((1, 2.5, 1.5), gap="small")
 
