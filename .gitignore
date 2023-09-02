@@ -7,3 +7,4 @@ __pycache__/
 venv/
 env/
 connection_test.ipynb
+.my_package/__pycache__/

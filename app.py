@@ -13,9 +13,6 @@
 # mesice a vypotrebovany budget
 # pak bude analyza konkrenti kampani
 
-
-from my_package.html import html_code, html_footer, title
-from my_package.style import apply_css
 import streamlit as st
 import calendar
 import pandas as pd
@@ -29,9 +26,12 @@ from datetime import timedelta
 import plotly.graph_objects as go
 from urllib.error import URLError
 # import arrow
-# import snowflake.connector
+import snowflake.connector
 pd.options.mode.chained_assignment = None  # default='warn'
 
+from my_package.html import html_code, html_footer, title
+from my_package.style import apply_css
+from my_package.snowflake_related import insert_rows_to_snowflake, fetch_data_from_snowflake
 
 def delete_row_from_df(df, index):
     if df.empty:
@@ -524,8 +524,7 @@ elif app_mode == 'Campaigns':
         columns = ["Client", "Budget", "Budget amount",
                    "Currency", "Since date", "Until date", "Campaings"]
         columns = np.array(columns, dtype=str)
-        # Create an empty dataframe with the defined columns
-        empty_df = pd.DataFrame(columns=columns)
+        
 
         # Create an empty session state variable
         session_state = st.session_state
@@ -533,7 +532,7 @@ elif app_mode == 'Campaigns':
 
         if "df" not in session_state:
             # Assign the initial data to the session state variable
-            session_state.df = empty_df
+            session_state.df = fetch_data_from_snowflake()
             session_state.row = pd.Series(index=columns)
 
         # Create a selectbox for each column in the current row
@@ -620,8 +619,8 @@ elif app_mode == 'Campaigns':
                             session_state.delete_pressed = False
                     if col24.button("Clear DF"):
                         session_state.df = empty_df
-                col1.header("Budgets and their limits")
-                col1.table(session_state.df)
+                st.header("Budgets and their limits")
+                st.table(session_state.df)
 
         # st.dataframe(session_state.df)
         # st.data_editor(budget_df, num_rows="static")
@@ -697,10 +696,11 @@ elif app_mode == 'Campaigns':
         tab1, tab2, tab3 = st.tabs(
             ["Clent overview", "Detailed Budget Examination", "Raw data"])
         with tab1:
+            st.header("Filters: ")
             # Create two columns for filter controls
             col1f, col2f = st.columns((1.5, 3))
-            col1.header("Filters: ")
-
+            
+            #TODO connect filters to data   
             selected_year_month = col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix,  placeholder="All months", key="monthfiltercharts")
 
@@ -711,42 +711,125 @@ elif app_mode == 'Campaigns':
                 filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
                     df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
             st.divider()
-            col1, col2 = st.columns((6, 1), gap="large")
+            col1, col2 = st.columns((4, 1), gap="large")
+            client_list = data_from_snowflake["Client"].unique() 
+            ####
 
-            with col1:
-                df_from_snowflake = st.session_state.dfsnowflake.copy()
-                # budget_by_clietn = df_from_snowflake.groupby(['Client']).agg(
-                # {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
-                # st.write(df_from_snowflake)
+            #### Data for a chart 
 
-                # Sample dataframe
-                data = {'Client': ['MOL', 'WMC'],
-                        'Budget': [1500, 1200],
-                        'Spend': [1300, 900]}
-                df = pd.DataFrame(data)
-                col1.subheader('Current budget situation by Client')
-                for _, row in df.iterrows():
-                    spend_current_month = row['Spend']
-                    month_budget = row['Budget']
+            ####
+            
+            data_from_snowflake.columns = st.session_state.df.columns.str.lower()
+            data_from_snowflake.columns = data_from_snowflake.columns.str.title()
+                   
+            budget_by_client = data_from_snowflake.groupby(['Client']).agg(
+                                {'Budget_Amount': 'sum'}).reset_index().sort_values(by='Budget_Amount', ascending=False)
 
-                    fig = px.bar(x=[spend_current_month],
-                                 y=[row['Client']],
-                                 orientation='h',
-                                 labels={'x': 'EUR', 'y': ''})
+            filtered_df = df[(df['start_date'] >= pd.to_datetime('2023-06-01')) & (df['start_date'] <= pd.to_datetime('2023-09-01'))]
 
-                    fig.update_layout(xaxis=dict(
-                        range=[0, month_budget]), height=200)
-                    fig.update_traces(marker_color='rgb(105, 205, 251)')
 
-                    percentage_spend = spend_current_month/month_budget*100
+             #camp_df = filtered_df.loc[filtered_df["campaign_name"] in ]
+            def camp_for_sorting(df):
+                campaigns_for_sorting = []
+                for campaigns_list in df['Campaings']:
+                    for campaign in campaigns_list:
+                        campaigns_for_sorting.append(campaign)
+                campaigns_for_sorting = list(set(campaigns_for_sorting))
+                return campaigns_for_sorting
 
-                    fig.add_annotation(x=spend_current_month,
-                                       y=row['Client'],
-                                       text=f"{percentage_spend:.2f}%",
-                                       showarrow=False,
-                                       yshift=10, xshift=30)
+            campaigns_for_sorting = camp_for_sorting(data_from_snowflake)
 
-                    col1.plotly_chart(fig, use_container_width=True)
+            filtered_df_2 = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
+            campaign_spend = filtered_df_2.groupby(['campaign_name']).agg(
+                                {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
+
+            mapping = data_from_snowflake.explode('Campaings')[['Client', 'Campaings']].rename(columns={'Campaings': 'campaign_name'})
+            merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
+            total_spent_per_client = merged.groupby('Client')['spent_amount'].sum().reset_index()
+            final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
+            final_df.rename(columns={'spent_amount': 'Total_Spent'}, inplace=True)
+            final_df['Unspent'] = final_df['Budget_Amount'] - final_df['Total_Spent']
+            final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)   
+            
+            fig_spend = go.Figure()
+
+                # Adding bars for Unspent
+
+
+            # Adding bars for Total Spent
+            for index, row in final_df.iterrows():
+                fig_spend.add_trace(go.Bar(
+                        x=[row['Total_Spent']],
+                        y=[row['Client']],
+                        name='Spent',
+                        orientation='h',
+                        text=f"{row['Percentage_spend']:.2f} %",
+                        textposition='auto',
+                        textfont_color = 'white',
+                        marker_color=px.colors.qualitative.Plotly[1]
+                    ))
+            for index, row in final_df.iterrows():
+                    fig_spend.add_trace(go.Bar(
+                        x=[row['Unspent']],
+                        y=[row['Client']],
+                        #name='Unspent',
+                        orientation='h',
+                        text=f"{row['Budget_Amount']} EUR",
+                        textposition='outside',
+                        marker_color=px.colors.qualitative.Plotly[2]  # Using a fixed color for Unspent
+                    ))
+
+
+                # Update layout settings
+            max_budget = final_df['Budget_Amount'].max()
+
+            fig_spend.update_layout(title='Client Spent vs Budget',
+                                        xaxis=dict(
+                                            range=[0, max_budget * 1.10], title='EUR'),
+                                        yaxis_title='',
+                                        barmode='stack',
+                                        showlegend=False)
+                #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
+            
+                
+            col1.plotly_chart(fig_spend, use_container_width=True)
+            ###########
+            ###########
+            ##########
+            # with col1:
+                
+            #     # budget_by_clietn = df_from_snowflake.groupby(['Client']).agg(
+            #     # {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
+            #     # st.write(df_from_snowflake)
+
+            #     # Sample dataframe
+            #     data = {'Client': ['MOL', 'WMC'],
+            #             'Budget': [1500, 1200],
+            #             'Spend': [1300, 900]}
+            #     df = pd.DataFrame(data)
+            #     col1.subheader('Current budget situation by Client')
+            #     for _, row in df.iterrows():
+            #         spend_current_month = row['Spend']
+            #         month_budget = row['Budget']
+
+            #         fig = px.bar(x=[spend_current_month],
+            #                      y=[row['Client']],
+            #                      orientation='h',
+            #                      labels={'x': 'EUR', 'y': ''})
+
+            #         fig.update_layout(xaxis=dict(
+            #             range=[0, month_budget]), height=200)
+            #         fig.update_traces(marker_color='rgb(105, 205, 251)')
+
+            #         percentage_spend = spend_current_month/month_budget*100
+
+            #         fig.add_annotation(x=spend_current_month,
+            #                            y=row['Client'],
+            #                            text=f"{percentage_spend:.2f}%",
+            #                            showarrow=False,
+            #                            yshift=10, xshift=30)
+
+            #         col1.plotly_chart(fig, use_container_width=True)
 
             # col22.metric("Advertising -  total budget Utilization",str(spend_current_month) + ' EUR')
             # month_budget = 1000 #TODO add input
