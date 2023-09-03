@@ -1,3 +1,4 @@
 # requirements.txt
 plotly == 5.16.1
 snowflake-connector-python
+streamlit_option_menu==0.3.2

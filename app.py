@@ -14,6 +14,8 @@
 # pak bude analyza konkrenti kampani
 
 import streamlit as st
+import warnings
+from streamlit_option_menu import option_menu
 import calendar
 import pandas as pd
 import numpy as np
@@ -28,10 +30,30 @@ from urllib.error import URLError
 # import arrow
 import snowflake.connector
 pd.options.mode.chained_assignment = None  # default='warn'
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 from my_package.html import html_code, html_footer, title
 from my_package.style import apply_css
 from my_package.snowflake_related import insert_rows_to_snowflake, fetch_data_from_snowflake
+
+
+# Layout settings ---------------
+page_title = "Ad Expenses Tracker"
+page_icon = ":bar_chart:"
+layout = "wide"
+
+#--------------------------------
+st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
+
+# --- NAVIGATION MENU --- #
+app_mode =option_menu(
+    menu_title=None,
+    options=['Expenses', 'Analytics', 'Campaigns'],
+    icons=["cash-coin","bar-chart-line", "badge-ad"],
+    orientation="horizontal"
+)
+
 
 def delete_row_from_df(df, index):
     if df.empty:
@@ -40,8 +62,6 @@ def delete_row_from_df(df, index):
         return df.drop(index, inplace=True).reset_index(drop=True)
 
 # Functions get unique years form source data
-
-
 def get_years(df):
     years = []
     df['start_date'] = pd.to_datetime(df['start_date'])
@@ -77,7 +97,7 @@ def last_day_month(selected_year_month):
     return last_date
 
 
-st.set_page_config(layout="wide")
+
 # file_path = "/data/in/tables/input_table.csv"
 file_path_local = "data/ads_insight_fact.csv"
 df = pd.read_csv(file_path_local)
@@ -94,8 +114,8 @@ df['start_date'] = pd.to_datetime(df['start_date'])
 df['campaign_name'] = df.apply(
     lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
 
-app_mode = st.sidebar.selectbox(
-    'Select Page', ['Expenses', 'Analytics', 'Campaigns'])  # two pages
+# app_mode = st.sidebar.selectbox(
+#     'Select Page', ['Expenses', 'Analytics', 'Campaigns'])  # two pages
 distinct_campaigns = df['campaign_name'].unique()
 distinct_source = df["platform_id"].unique()
 # Get current month and year
@@ -190,8 +210,8 @@ if app_mode == 'Analytics':
             {'link_clicks': 'sum', 'impressions': 'sum'}).reset_index()
         grouped['ctr'] = (grouped['link_clicks'] /
                           grouped['impressions']) * 100
-        campaings_df = grouped.copy()
-        max_campaign = campaings_df["ctr"].max()
+        Campaigns_df = grouped.copy()
+        max_campaign = Campaigns_df["ctr"].max()
 
         with tab1:
             st.markdown(title["topcampains"], unsafe_allow_html=True)
@@ -244,17 +264,17 @@ if app_mode == 'Analytics':
         with tab2:
             # # Display title for the "Campaigns" section
             st.markdown(title["impressions"], unsafe_allow_html=True)
-            fig = px.bar(campaings_df, x="start_date",
+            fig = px.bar(Campaigns_df, x="start_date",
                          y="impressions", color="campaign_name")
-            # st.bar_chart(data = campaings_df, x="start_date", y="impressions",use_container_width=True)
-            # fig = px.bar(campaings_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
+            # st.bar_chart(data = Campaigns_df, x="start_date", y="impressions",use_container_width=True)
+            # fig = px.bar(Campaigns_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
             fig.update_layout(xaxis_title='Date', yaxis_title='impressions')
             # # Display the bar chart
             st.plotly_chart(fig, use_container_width=True)
 
             # Clicks
             st.markdown(title["clicks"], unsafe_allow_html=True)
-            fig = px.bar(campaings_df, x="start_date", y="link_clicks",
+            fig = px.bar(Campaigns_df, x="start_date", y="link_clicks",
                          color="campaign_name")  # , color="source"
             fig.update_layout(
                 xaxis_title='Date',
@@ -264,7 +284,7 @@ if app_mode == 'Analytics':
             st.plotly_chart(fig, use_container_width=True)
 
             st.markdown(title["clicktr"], unsafe_allow_html=True)
-            fig = px.line(campaings_df, x="start_date", y="ctr",
+            fig = px.line(Campaigns_df, x="start_date", y="ctr",
                           color="campaign_name")  # , color="source"
 
             # # Update layout
@@ -464,7 +484,7 @@ elif app_mode == 'Expenses':
             else:
                 grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
                     .agg({'spent_amount': 'sum'}).reset_index()
-                campaings_df = grouped.copy()
+                Campaigns_df = grouped.copy()
                 grouped = filtered_df.groupby(['platform_id', 'start_date'])\
                     .agg({'spent_amount': 'sum'}).reset_index()
                 platform_id_df = grouped.copy()
@@ -481,7 +501,7 @@ elif app_mode == 'Expenses':
                     st.plotly_chart(fig, use_container_width=True)
                 with tab2:
                     # , color="source"
-                    fig = px.bar(campaings_df, x="start_date",
+                    fig = px.bar(Campaigns_df, x="start_date",
                                  y="spent_amount", color="campaign_name")
 
                     fig.update_layout(
@@ -522,7 +542,7 @@ elif app_mode == 'Campaigns':
         # Container for budget df
         # Define column names for the empty dataframe
         columns = ["Client", "Budget", "Budget amount",
-                   "Currency", "Since date", "Until date", "Campaings"]
+                   "Currency", "Since date", "Until date", "Campaigns"]
         columns = np.array(columns, dtype=str)
         
 
@@ -558,7 +578,7 @@ elif app_mode == 'Campaigns':
             elif col == "Until date":
                 session_state.row[col] = col11.date_input("Select a start date for budget:",
                                                           datetime.date(current_year, current_month, current_day), key="until_date_budget")
-            elif col == "Campaings":  # TODO controll, that cahrts don't show expenses for the ads before the period !
+            elif col == "Campaigns":  # TODO controll, that cahrts don't show expenses for the ads before the period !
                 try:
 
                     with col11:
@@ -618,7 +638,8 @@ elif app_mode == 'Campaigns':
                                 session_state.df, index_to_delete)
                             session_state.delete_pressed = False
                     if col24.button("Clear DF"):
-                        session_state.df = empty_df
+                        #session_state.df = empty_df
+                        print("empty")
                 st.header("Budgets and their limits")
                 st.table(session_state.df)
 
@@ -662,72 +683,48 @@ elif app_mode == 'Campaigns':
         )
 
         # Data from snowflake
-
-        data_from_snowflake = {
-            "CLIENT": ["MOL", "WMC", "MOL", "MOL", "WMC", "MOL"],
-            "BUDGET": ["MOL_B1", "WMC_B2", "B3_MOL", "MOL_B1", "WMC_B2", "B3_MOL"],
-            "BUDGET_AMOUNT": [1000, 1200, 1500, 1000, 1200, 1500],
-            "CURRENCY": ["EUR", "EUR", "EUR", "EUR", "EUR", "EUR"],
-            "SINCE_DATE": ["2023-07-12", "2023-06-01", "2023-05-20", "2023-07-12", "2023-06-01", "2023-05-20"],
-            "UNTIL_DATE": ["2023-08-12", "2023-08-01", "2023-08-20", "2023-08-12", "2023-08-01", "2023-08-20"],
-            "CAMPAINGS": [
-                ["TIKTOK-MOL CZ - TT - Follows - 03/2023",
-                    "FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023"],
-                ["LINKEDIN-MOL - link clicks - LI - Provozovatel Kutná Hora - 05/2023",
-                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"],
-                ["LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023", "LINKEDIN-MOL - link clicks - LI - Provozovatel Praha - 05-06/2023",
-                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023"],
-                ["TIKTOK-MOL CZ - TT - Follows - 03/2023",
-                    "FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023"],
-                ["LINKEDIN-MOL - link clicks - LI - Provozovatel Kutná Hora - 05/2023",
-                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"],
-                ["LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023", "LINKEDIN-MOL - link clicks - LI - Provozovatel Praha - 05-06/2023",
-                    "LINKEDIN-MOL - link clicks - LI - Provozovatel Chebsko - 05-06/2023"]
-            ]
-        }
-        data_from_snowflake = pd.DataFrame(data_from_snowflake)
+        data_from_snowflake = fetch_data_from_snowflake()
         data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
         data_from_snowflake.columns = data_from_snowflake.columns.str.title()
-        st.session_state.dfsnowflake = data_from_snowflake
-        client_list = st.session_state.dfsnowflake["Client"].unique()
+        data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
+        data_from_snowflake['Until_Date'] = pd.to_datetime(data_from_snowflake['Until_Date'])
+        client_list = data_from_snowflake["Client"].unique()
+        default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
+        
         ##
-
+        
         # Tabs for visuals
         tab1, tab2, tab3 = st.tabs(
             ["Clent overview", "Detailed Budget Examination", "Raw data"])
         with tab1:
+            
+
             st.header("Filters: ")
             # Create two columns for filter controls
-            col1f, col2f = st.columns((1.5, 3))
-            
-            #TODO connect filters to data   
-            selected_year_month = col1f.selectbox('Select Year and Month:',
-                                                  ordered_list_year_month, index=default_ix,  placeholder="All months", key="monthfiltercharts")
+            #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
+            filtered_clients= data_from_snowflake
+            with st.form("entry_form_budget_filter", clear_on_submit=False):
+                col1f, col2f = st.columns((1.5, 3))
+                col1f.selectbox('Select Year and Month:',
+                                                  ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
+                col2f.multiselect('Select a source:',
+                                                    client_list, default=client_list, placeholder="Client", key="clientunique")
+                
+                submitted = st.form_submit_button("Filter data")
+                if submitted:
+                    data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
+                    filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["clientunique"])]
+                    
 
-            selected_client = col2f.multiselect('Select a source:',
-                                                client_list, default=client_list, placeholder="Client", key="clientunique")
+            col1, col2 = st.columns((2, 1), gap="large")
 
-            if len(st.session_state.monthfiltercharts) != 0:
-                filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
-                    df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
-            st.divider()
-            col1, col2 = st.columns((4, 1), gap="large")
-            client_list = data_from_snowflake["Client"].unique() 
+
+            # --- Data for a chart --- #
+
             ####
-
-            #### Data for a chart 
-
-            ####
-            
-            data_from_snowflake.columns = st.session_state.df.columns.str.lower()
-            data_from_snowflake.columns = data_from_snowflake.columns.str.title()
-                   
-            budget_by_client = data_from_snowflake.groupby(['Client']).agg(
-                                {'Budget_Amount': 'sum'}).reset_index().sort_values(by='Budget_Amount', ascending=False)
-
-            filtered_df = df[(df['start_date'] >= pd.to_datetime('2023-06-01')) & (df['start_date'] <= pd.to_datetime('2023-09-01'))]
-
-
+            budget_by_client = filtered_clients.groupby(['Client']).agg(
+                        {'Budget_Amount': 'sum'}).reset_index().sort_values(by='Budget_Amount', ascending=False)
+            filtered_df = df 
              #camp_df = filtered_df.loc[filtered_df["campaign_name"] in ]
             def camp_for_sorting(df):
                 campaigns_for_sorting = []
@@ -736,9 +733,9 @@ elif app_mode == 'Campaigns':
                         campaigns_for_sorting.append(campaign)
                 campaigns_for_sorting = list(set(campaigns_for_sorting))
                 return campaigns_for_sorting
-
-            campaigns_for_sorting = camp_for_sorting(data_from_snowflake)
-
+            
+            campaigns_for_sorting = camp_for_sorting(filtered_clients)
+            
             filtered_df_2 = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
             campaign_spend = filtered_df_2.groupby(['campaign_name']).agg(
                                 {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
@@ -749,50 +746,58 @@ elif app_mode == 'Campaigns':
             final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
             final_df.rename(columns={'spent_amount': 'Total_Spent'}, inplace=True)
             final_df['Unspent'] = final_df['Budget_Amount'] - final_df['Total_Spent']
-            final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)   
-            
-            fig_spend = go.Figure()
+            final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)
+            final_df = final_df.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
 
+            # ---  Sankey Chart --- #
+            
+            # --- Printing filtered data in second column --- #
+            col2.markdown(title["inputdata"], unsafe_allow_html=True)
+            col2.write(final_df)
+
+            # --- Creating plot for client's budget --- #
+            if final_df.empty:
+                col1.warning(":face_with_monocle:" + " There is no data for this period")
                 # Adding bars for Unspent
-
-
-            # Adding bars for Total Spent
-            for index, row in final_df.iterrows():
-                fig_spend.add_trace(go.Bar(
-                        x=[row['Total_Spent']],
-                        y=[row['Client']],
-                        name='Spent',
-                        orientation='h',
-                        text=f"{row['Percentage_spend']:.2f} %",
-                        textposition='auto',
-                        textfont_color = 'white',
-                        marker_color=px.colors.qualitative.Plotly[1]
-                    ))
-            for index, row in final_df.iterrows():
+            else: 
+                # Adding bars for Total Spent
+                fig_spend = go.Figure()
+                for index, row in final_df.iterrows():
                     fig_spend.add_trace(go.Bar(
-                        x=[row['Unspent']],
-                        y=[row['Client']],
-                        #name='Unspent',
-                        orientation='h',
-                        text=f"{row['Budget_Amount']} EUR",
-                        textposition='outside',
-                        marker_color=px.colors.qualitative.Plotly[2]  # Using a fixed color for Unspent
-                    ))
-
-
-                # Update layout settings
-            max_budget = final_df['Budget_Amount'].max()
-
-            fig_spend.update_layout(title='Client Spent vs Budget',
-                                        xaxis=dict(
-                                            range=[0, max_budget * 1.10], title='EUR'),
-                                        yaxis_title='',
-                                        barmode='stack',
-                                        showlegend=False)
-                #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
-            
+                            x=[row['Total spend']],
+                            y=[row['Client']],
+                            name='Spent',
+                            orientation='h',
+                            text=f"{row['Percentage spend']:.2f} %",
+                            textposition='auto',
+                            textfont_color = 'white',
+                            marker_color=px.colors.qualitative.Plotly[1]
+                        ))
+                for index, row in final_df.iterrows():
+                        fig_spend.add_trace(go.Bar(
+                            x=[row['Unspent']],
+                            y=[row['Client']],
+                            #name='Unspent',
+                            orientation='h',
+                            text=f"{row['Budget amount']} EUR",
+                            textposition='outside',
+                            marker_color=px.colors.qualitative.Plotly[2]  # Using a fixed color for Unspent
+                        ))
+                   # Update layout settings
+                max_budget = final_df['Budget amount'].max()
+                fig_spend.update_layout(title='Client Spent vs Budget',
+                                            xaxis=dict(
+                                                range=[0, max_budget * 1.10], title='EUR'),
+                                            yaxis_title='',
+                                            barmode='stack',
+                                            showlegend=False)
+                    #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
+                col1.plotly_chart(fig_spend, use_container_width=True)
+                    
                 
-            col1.plotly_chart(fig_spend, use_container_width=True)
+                 
+
+                
             ###########
             ###########
             ##########
@@ -902,8 +907,8 @@ elif app_mode == 'Campaigns':
 
         col1.metric("Number of campaigns above the limit ", '❗' +
                     str(campaigns_above_budget.shape[0]) + ' Campaigns above budget')  # TODO
-        col1.write(campaigns_above_budget.rename(
-            columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
+        #col1.write(campaigns_above_budget.rename(
+            #columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
 
         if col1.button('Generate plot'):
             fig = go.Figure()
@@ -940,4 +945,4 @@ elif app_mode == 'Campaigns':
 
             col2.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(filtered_df.head(5))  # TODO tabulka nezarazenych kampani
+    #st.dataframe(filtered_df.head(5))  # TODO tabulka nezarazenych kampani
