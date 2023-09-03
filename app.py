@@ -739,6 +739,8 @@ elif app_mode == 'Campaigns':
             filtered_df_2 = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
             campaign_spend = filtered_df_2.groupby(['campaign_name']).agg(
                                 {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
+            platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
+                        {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
 
             mapping = data_from_snowflake.explode('Campaings')[['Client', 'Campaings']].rename(columns={'Campaings': 'campaign_name'})
             merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
@@ -749,7 +751,7 @@ elif app_mode == 'Campaigns':
             final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)
             final_df = final_df.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
 
-            # ---  Sankey Chart --- #
+            
             
             # --- Printing filtered data in second column --- #
             col2.markdown(title["inputdata"], unsafe_allow_html=True)
@@ -771,7 +773,7 @@ elif app_mode == 'Campaigns':
                             text=f"{row['Percentage spend']:.2f} %",
                             textposition='auto',
                             textfont_color = 'white',
-                            marker_color=px.colors.qualitative.Plotly[1]
+                            marker_color='#d33682'
                         ))
                 for index, row in final_df.iterrows():
                         fig_spend.add_trace(go.Bar(
@@ -793,7 +795,55 @@ elif app_mode == 'Campaigns':
                                             showlegend=False)
                     #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
                 col1.plotly_chart(fig_spend, use_container_width=True)
+                
+                #########################
+                # ---  Sankey Chart --- #
+                #########################
+                col11, col12 = st.columns((2, 1), gap="large")
+                color_cycle = ['blue', 'red', 'green', 'yellow', 'purple', 'cyan']  # Define more colors if needed
+
+                # Map clients to specific colors from the color_cycle
+                client_colors = {client: color_cycle[i % len(color_cycle)] for i, client in enumerate(data_from_snowflake['Client'].unique())}
                     
+                def extract_platform(campaign_name):
+                    return campaign_name.split('-')[0]  # This might be too simplistic, adjust as necessary
+
+                unique_platforms = list(set([extract_platform(c) for c in campaign_spend['campaign_name']]))
+
+                # Adjust labels to include platforms
+                labels = list(data_from_snowflake['Budget'].unique()) + list(data_from_snowflake['Client'].unique()) + unique_platforms
+
+                # Budget to Client links are unchanged
+                source = [labels.index(budget) for budget in data_from_snowflake['Budget']]
+                target = [labels.index(client) for client in data_from_snowflake['Client']]
+                value = data_from_snowflake['Budget_Amount'].tolist()
+
+                colors = ['gray' for _ in data_from_snowflake['Budget']]
+
+                # Client to Platform links (instead of campaigns)
+                for index, row in data_from_snowflake.iterrows():
+                    for campaign in row['Campaings']:
+                        platform = extract_platform(campaign)
+                        source.append(labels.index(row['Client']))
+                        target.append(labels.index(platform))
+
+                        # Check if the campaign exists in campaign_spend
+                        campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+                        if not campaign_data.empty:
+                            value.append(campaign_data.iloc[0])
+                        else:
+                            value.append(0)  # or any default value you'd want in case of missing data
+                                        
+                        colors.append(client_colors[row['Client']])
+
+                # Build the Sankey chart
+                fig = go.Figure(data=[go.Sankey(
+                    node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=labels),
+                    link=dict(source=source, target=target, value=value, color=colors)
+                )])
+                fig.update_layout(title="Flow of Funds: From Budgets to Platforms via Clients")
+                
+                col11.plotly_chart(fig, use_container_width=True)
                 
                  
 
