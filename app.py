@@ -797,7 +797,7 @@ elif app_mode == 'Campaigns':
                 col1.plotly_chart(fig_spend, use_container_width=True)
                 
                 #########################
-                # ---  Sankey Chart --- #
+                # ---  Sankey Chart --- # #TODO: controll if the value may-2023 and MOL-2 bug 
                 #########################
                 col11, col12 = st.columns((2, 1), gap="large")
                 color_cycle = ['blue', 'red', 'green', 'yellow', 'purple', 'cyan']  # Define more colors if needed
