@@ -1,17 +1,6 @@
-#TODO: kolacovy bar na cerpanu 
-#TODOL dalsi grafy a casove rady (kumulace)git s
-
 # TODO Dispaly only campaigns, which are not selected
-# TODO filter per client
-# TODO client and budget ( editace)
-# TODO filters depending on tabs of page
-# TODO utracena % z kamp
-# TODO tabulka budget kterou nalinkuju na kampani
-
-#
 # TODO scenare pro kampan  - pridat ?
-# TODO Vypocet budgetu pro kampan - not needed
-# TODO add columns in snowflake corresponding to client for a futher filtration
+# TODO: create a filter which will show only campaigns which are not related to a specific budget 
 
 # mesice a vypotrebovany budget
 # pak bude analyza konkrenti kampani
@@ -49,7 +38,7 @@ layout = "wide"
 
 #--------------------------------
 st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
-
+apply_css()
 # --- NAVIGATION MENU --- #
 app_mode =option_menu(
     menu_title=None,
@@ -99,6 +88,15 @@ def last_day_month(selected_year_month):
         selected_year_month[5:] + ', ' + selected_year_month[:4]
     last_date = custom_str_to_date(last_d)
     return last_date
+
+# --- Function create a list of distinct campaigns which are not related to a specific budget --- #
+def get_ditinct_campaigns_from_snowflake():
+    campaigns_from_snowflake = []
+    data_from_snowflake = fetch_data_from_snowflake()
+    for l in data_from_snowflake["CAMPAINGS"]:
+        for c in l:
+            campaigns_from_snowflake.append(c)
+    return campaigns_from_snowflake
 
 
 
@@ -527,8 +525,8 @@ elif app_mode == 'Budgets':
         col1, col2, col3 = st.columns(3, gap="small")
         with col2:
             st.title("Budget overview")
-    apply_css()
-    with st.expander("Show budget settings"):
+    
+    with st.expander("Show budget table settings"):
 
         # df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
         col1, col2 = st.columns(2, gap="small")
@@ -607,8 +605,9 @@ elif app_mode == 'Budgets':
                         if len(st.session_state.source) != 0:
                             filtered_df = filtered_df[filtered_df['platform_id'].isin(
                                 st.session_state.source)]
-                            distinct_campaigns_by_platform = filtered_df['campaign_name'].unique(
-                            )
+                            
+                            distinct_campaigns_by_platform =  filtered_df[~df['campaign_name'].isin(get_ditinct_campaigns_from_snowflake())]
+                            distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
                         session_state.row[col] = col11.multiselect('Select a campaign:',
                                                                    distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign")
                 except URLError as e:
@@ -665,10 +664,7 @@ elif app_mode == 'Budgets':
     # spend_current_month = round(np.sum(filtered_df["spent_amount"]), 2)
     # spend_last_month = round(np.sum(df_last_month["spent_amount"]), 2)
 
-    # Dummy df for representation
-    data = {"Client": ["MOL"], "Budget": [1500,], "Campaign": [
-        ["FACEBOOK-MOL - link clicks - FB+IG - MOL MOVE kampaň - 05-07/2023", "LINKEDIN-MOL - link clicks - LI - Provozovatelé - 2023"]]}
-    df_dummy = pd.DataFrame(data)
+
 
     with st.container():
         st.markdown(
@@ -701,21 +697,23 @@ elif app_mode == 'Budgets':
         ##
         
         # Tabs for visuals
-        tab1, tab2, tab3 = st.tabs(
-            ["Cleent overview", "Detailed Budget Examination", "Raw data"])
+        tab1, tab2 = st.tabs(
+            ["Cleent overview", "Detailed Budget Examination"])
         with tab1:
             st.header("Filters: ")
             # Create two columns for filter controls
             #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
             filtered_clients= data_from_snowflake
+            
             with st.form("entry_form_budget_filter", clear_on_submit=False):
+                
                 col1f, col2f = st.columns((1.5, 3))
                 col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
                 col2f.multiselect('Select a source:',
                                                     client_list, default=client_list, placeholder="Client", key="clientunique")
-                
-                submitted = st.form_submit_button("Filter data")
+                apply_css()
+                submitted = st.form_submit_button("Filter data",use_container_width = True)
                 if submitted:
                     data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
                     filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["clientunique"])]
@@ -868,25 +866,6 @@ elif app_mode == 'Budgets':
                  
 
                 st.divider()  
-
-               
-                
-                
-                
-                # for budget in budgets:
-                #     # Filter campaigns associated with the current budget
-                #     related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
-
-                #     # Filter the daily_spend dataframe for those campaigns
-                #     budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)]
-
-                #     # Plot the area chart for the current budget
-                #     fig = px.area(budget_daily_spend, x='start_date', y='spent_amount', color='campaign_name', 
-                #                 title=f"Daily Spend Over Time for Budget: {budget}", 
-                #                 labels={'spent_amount': 'Amount Spent', 'start_date': 'Start Date'},
-                #                 category_orders={'campaign_name': sorted(budget_daily_spend['campaign_name'].unique())})
-
-                #     col12.plotly_chart(fig, use_container_width=True)
 
                 
                

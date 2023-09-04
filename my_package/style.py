@@ -122,5 +122,23 @@ def apply_css():
         padding: 15px;
         
     }
+    .stForm button {
+        background-color: #4CAF50; /* Green background */
+        border: none; /* Remove border */
+        color: white; /* White text */
+        padding: 15px 32px; /* Some padding */
+        text-align: center; 
+        text-decoration: none; 
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px; 
+        cursor: pointer; 
+        border-radius: 4px; /* Rounded corners */
+        transition-duration: 0.4s; /* Transition effect */
+    }
+
+    .stForm button:hover {
+        background-color: #45a049; /* Darker green on hover */
+    }
     """
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
