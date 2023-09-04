@@ -54,7 +54,7 @@ st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
 app_mode =option_menu(
     menu_title=None,
     options=['Expenses', 'Budgets', 'Analytics'],
-    icons=["cash-coin","bar-chart-line", "wallet-fill"],
+    icons=["cash-coin", "wallet-fill","bar-chart-line"],
     orientation="horizontal"
 )
 
