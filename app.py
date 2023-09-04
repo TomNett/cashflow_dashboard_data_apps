@@ -523,7 +523,7 @@ elif app_mode == 'Budgets':
     with st.container():
         col1, col2, col3 = st.columns(3, gap="small")
         with col2:
-            st.title("Campaigns overview")
+            st.title("Budget overview")
     apply_css()
     with st.expander("Show budget settings"):
 
