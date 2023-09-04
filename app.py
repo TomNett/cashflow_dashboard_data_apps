@@ -701,8 +701,6 @@ elif app_mode == 'Budgets':
         tab1, tab2, tab3 = st.tabs(
             ["Cleent overview", "Detailed Budget Examination", "Raw data"])
         with tab1:
-            
-
             st.header("Filters: ")
             # Create two columns for filter controls
             #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
@@ -863,6 +861,36 @@ elif app_mode == 'Budgets':
 
                 col11.plotly_chart(fig, use_container_width=True)   
 
+                
+                 
+
+                st.divider()  
+
+               
+                
+                
+                
+                # for budget in budgets:
+                #     # Filter campaigns associated with the current budget
+                #     related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
+
+                #     # Filter the daily_spend dataframe for those campaigns
+                #     budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)]
+
+                #     # Plot the area chart for the current budget
+                #     fig = px.area(budget_daily_spend, x='start_date', y='spent_amount', color='campaign_name', 
+                #                 title=f"Daily Spend Over Time for Budget: {budget}", 
+                #                 labels={'spent_amount': 'Amount Spent', 'start_date': 'Start Date'},
+                #                 category_orders={'campaign_name': sorted(budget_daily_spend['campaign_name'].unique())})
+
+                #     col12.plotly_chart(fig, use_container_width=True)
+
+                
+               
+
+            # --- TAB 2 FOR BUDGETS --- #
+            
+            with tab2:
                  #################################
                  # --- Budget over time look --- #
                  #################################
@@ -899,38 +927,15 @@ elif app_mode == 'Budgets':
                         ind = ind + 1      
                                 # Plot the stacked area chart
                 fig.update_layout(title='Budget Spent In Time ',
-                                                yaxis=dict(
-                                                    range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
-                col11.plotly_chart(fig, use_container_width=True)  
-
-                st.divider()  
-
-               
+                    height=500 ,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                    yaxis=dict(
+                    range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
+                st.plotly_chart(fig, use_container_width=True)     
                 
-                
-                
-                # for budget in budgets:
-                #     # Filter campaigns associated with the current budget
-                #     related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
-
-                #     # Filter the daily_spend dataframe for those campaigns
-                #     budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)]
-
-                #     # Plot the area chart for the current budget
-                #     fig = px.area(budget_daily_spend, x='start_date', y='spent_amount', color='campaign_name', 
-                #                 title=f"Daily Spend Over Time for Budget: {budget}", 
-                #                 labels={'spent_amount': 'Amount Spent', 'start_date': 'Start Date'},
-                #                 category_orders={'campaign_name': sorted(budget_daily_spend['campaign_name'].unique())})
-
-                #     col12.plotly_chart(fig, use_container_width=True)
-
-                
-               
-
-            # --- TAB 2 FOR BUDGETS --- #
-            
-            with tab2:
+                ##############################################            
                  # --- Pie charts for budget distributtion --- #
+                 ##############################################
+
                 budget_groups = data_from_snowflake.groupby('Budget')
 
                 num_budgets = len(budget_groups)
