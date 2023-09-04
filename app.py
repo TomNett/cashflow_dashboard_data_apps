@@ -1,3 +1,6 @@
+#TODO: kolacovy bar na cerpanu 
+#TODOL dalsi grafy a casove rady (kumulace)git s
+
 # TODO Dispaly only campaigns, which are not selected
 # TODO filter per client
 # TODO client and budget ( editace)
