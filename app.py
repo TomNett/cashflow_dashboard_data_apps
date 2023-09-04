@@ -53,7 +53,7 @@ st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
 # --- NAVIGATION MENU --- #
 app_mode =option_menu(
     menu_title=None,
-    options=['Expenses', 'Analytics', 'Budgets'],
+    options=['Expenses', 'Budgets', 'Analytics'],
     icons=["cash-coin","bar-chart-line", "wallet-fill"],
     orientation="horizontal"
 )
