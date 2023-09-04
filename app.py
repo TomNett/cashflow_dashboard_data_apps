@@ -30,6 +30,7 @@ from datetime import date
 from datetime import timedelta
 import plotly.graph_objects as go
 from urllib.error import URLError
+from plotly.subplots import make_subplots
 # import arrow
 import snowflake.connector
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -52,8 +53,8 @@ st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
 # --- NAVIGATION MENU --- #
 app_mode =option_menu(
     menu_title=None,
-    options=['Expenses', 'Analytics', 'Campaigns'],
-    icons=["cash-coin","bar-chart-line", "badge-ad"],
+    options=['Expenses', 'Analytics', 'Budgets'],
+    icons=["cash-coin","bar-chart-line", "wallet-fill"],
     orientation="horizontal"
 )
 
@@ -517,7 +518,7 @@ elif app_mode == 'Expenses':
             st.error()
 
 
-elif app_mode == 'Campaigns':
+elif app_mode == 'Budgets':
 
     with st.container():
         col1, col2, col3 = st.columns(3, gap="small")
@@ -698,7 +699,7 @@ elif app_mode == 'Campaigns':
         
         # Tabs for visuals
         tab1, tab2, tab3 = st.tabs(
-            ["Clent overview", "Detailed Budget Examination", "Raw data"])
+            ["Cleent overview", "Detailed Budget Examination", "Raw data"])
         with tab1:
             
 
@@ -803,40 +804,44 @@ elif app_mode == 'Campaigns':
                 # ---  Sankey Chart --- # #TODO: controll if the value may-2023 and MOL-2 bug 
                 #########################
                 col11, col12 = st.columns((2, 1), gap="large")
+                
                 color_cycle = ['blue', 'red', 'green', 'yellow', 'purple', 'cyan']  # Define more colors if needed
 
                 # Map clients to specific colors from the color_cycle
-                client_colors = {client: color_cycle[i % len(color_cycle)] for i, client in enumerate(data_from_snowflake['Client'].unique())}
-                    
-                def extract_platform(campaign_name):
-                    return campaign_name.split('-')[0]  # This might be too simplistic, adjust as necessary
+                client_colors = {client: color_cycle[i % len(color_cycle)] for i, client in enumerate(filtered_clients['Client'].unique())}
 
-                unique_platforms = list(set([extract_platform(c) for c in campaign_spend['campaign_name']]))
+                # Get all platforms from the campaign names in filtered_df
+                unique_platforms = list(filtered_df['campaign_name'].str.split('-').str[0].unique())
 
-                # Adjust labels to include platforms
-                labels = list(data_from_snowflake['Budget'].unique()) + list(data_from_snowflake['Client'].unique()) + unique_platforms
+                labels = list(filtered_clients['Budget'].unique()) + list(filtered_clients['Client'].unique()) + unique_platforms
 
                 # Budget to Client links are unchanged
-                source = [labels.index(budget) for budget in data_from_snowflake['Budget']]
-                target = [labels.index(client) for client in data_from_snowflake['Client']]
-                value = data_from_snowflake['Budget_Amount'].tolist()
+                source = [labels.index(budget) for budget in filtered_clients['Budget']]
+                target = [labels.index(client) for client in filtered_clients['Client']]
+                value = filtered_clients['Budget_Amount'].tolist()
 
-                colors = ['gray' for _ in data_from_snowflake['Budget']]
+                colors = ['gray' for _ in filtered_clients['Budget']]
 
-                # Client to Platform links (instead of campaigns)
-                for index, row in data_from_snowflake.iterrows():
+                # Client to Platform links
+                for index, row in filtered_clients.iterrows():
+                    platform_spends = {}  # To track spend for each platform within the loop
                     for campaign in row['Campaings']:
-                        platform = extract_platform(campaign)
-                        source.append(labels.index(row['Client']))
-                        target.append(labels.index(platform))
-
+                        platform = campaign.split('-')[0]
+                        
                         # Check if the campaign exists in campaign_spend
                         campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
                         if not campaign_data.empty:
-                            value.append(campaign_data.iloc[0])
+                            spend = campaign_data.iloc[0]
                         else:
-                            value.append(0)  # or any default value you'd want in case of missing data
-                                        
+                            spend = 0
+                        
+                        # Add or update the platform spend for this loop iteration
+                        platform_spends[platform] = platform_spends.get(platform, 0) + spend
+
+                    for platform, spend in platform_spends.items():
+                        source.append(labels.index(row['Client']))
+                        target.append(labels.index(platform))
+                        value.append(spend)
                         colors.append(client_colors[row['Client']])
 
                 # Build the Sankey chart
@@ -845,11 +850,134 @@ elif app_mode == 'Campaigns':
                     link=dict(source=source, target=target, value=value, color=colors)
                 )])
                 fig.update_layout(title="Flow of Funds: From Budgets to Platforms via Clients")
-                
-                col11.plotly_chart(fig, use_container_width=True)
-                
-                 
+                fig.add_annotation(
+                    text = "This diagram visualizes the flow of money from various budgets, through different clients, and finally to distinct advertising platforms.",                                        
+                    showarrow=False,
+                    yshift=-160,
+                    font=dict(
+                            family="sans serif",
+                            size=18,
+                            color="#F1F3F4"
+                        )                     
+                    )
 
+                col11.plotly_chart(fig, use_container_width=True)   
+
+                 #################################
+                 # --- Budget over time look --- #
+                 #################################
+                consolidated_daily_spend = pd.DataFrame()
+                daily_spend = filtered_df.groupby(['start_date', 'campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
+                budgets = data_from_snowflake['Budget'].unique()
+                full_date_range = pd.date_range(start=daily_spend['start_date'].min(), end=daily_spend['start_date'].max())
+                consolidated_daily_spend = pd.DataFrame({'Date': full_date_range})
+                # Create a complete date range from the earliest to the latest date in the dataset
+                ind = 1
+                fig = go.Figure()
+                for budget in budgets:
+                        related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
+
+                                    # Filter the daily_spend dataframe for those campaigns
+                        budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)].copy()
+                                    
+                        campaign_cumsums = []  # A list to hold the cumulative sums for each campaign
+                                    
+                        for campaign in related_campaigns:
+                                campaign_data = budget_daily_spend[budget_daily_spend['campaign_name'] == campaign].set_index('start_date')
+                                        
+                                        # Fill missing dates with zeros for this campaign
+                                campaign_data = campaign_data.reindex(full_date_range, fill_value=0).reset_index()
+                                campaign_data['cumulative_spent'] = campaign_data['spent_amount'].cumsum()
+                                        
+                                campaign_cumsums.append(campaign_data['cumulative_spent'])
+
+                                    # Sum the cumulative sums for each campaign to get the cumulative sum for the entire budget
+                                
+                        consolidated_daily_spend[budget] = sum(campaign_cumsums)
+
+                        fig.add_trace(go.Scatter(x=consolidated_daily_spend["Date"], y=consolidated_daily_spend.iloc[:,ind],name=budget, fill = 'tozeroy'))
+                        ind = ind + 1      
+                                # Plot the stacked area chart
+                fig.update_layout(title='Budget Spent In Time ',
+                                                yaxis=dict(
+                                                    range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
+                col11.plotly_chart(fig, use_container_width=True)  
+
+                st.divider()  
+
+               
+                
+                
+                
+                # for budget in budgets:
+                #     # Filter campaigns associated with the current budget
+                #     related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
+
+                #     # Filter the daily_spend dataframe for those campaigns
+                #     budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)]
+
+                #     # Plot the area chart for the current budget
+                #     fig = px.area(budget_daily_spend, x='start_date', y='spent_amount', color='campaign_name', 
+                #                 title=f"Daily Spend Over Time for Budget: {budget}", 
+                #                 labels={'spent_amount': 'Amount Spent', 'start_date': 'Start Date'},
+                #                 category_orders={'campaign_name': sorted(budget_daily_spend['campaign_name'].unique())})
+
+                #     col12.plotly_chart(fig, use_container_width=True)
+
+                
+               
+
+            # --- TAB 2 FOR BUDGETS --- #
+            
+            with tab2:
+                 # --- Pie charts for budget distributtion --- #
+                budget_groups = data_from_snowflake.groupby('Budget')
+
+                num_budgets = len(budget_groups)
+                sqrt_budgets = int(np.sqrt(num_budgets))
+                cols = sqrt_budgets if num_budgets == sqrt_budgets**2 else sqrt_budgets + 1
+                rows = num_budgets // cols + (num_budgets % cols > 0)  # ceil operation
+
+                subplot_titles = [name for name, _ in budget_groups]
+
+                fig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, specs=[[{'type':'domain'} for _ in range(cols)] for _ in range(rows)])
+
+                for index, (budget_name, group) in enumerate(budget_groups):
+                    platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
+                    
+                    for _, row in group.iterrows():
+                        for campaign in row['Campaings']:
+                            filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+
+                            if not filtered.empty:
+                                spent = filtered.iloc[0]
+                            else:
+                                spent = None  # or some default value or handling you'd like                            
+                            
+                            if campaign in platform_spendings:
+                                platform_spendings[campaign] += spent
+                            else:
+                                platform_spendings[campaign] = spent
+                    
+                    labels = list(platform_spendings.keys())
+                    values = list(platform_spendings.values())
+                    
+                    row_position = index // cols + 1
+                    col_position = index % cols + 1
+                    fig.add_trace(
+                        go.Pie(labels=labels, values=values, name=budget_name),
+                        row=row_position, col=col_position
+                    )
+
+                # Adjusting the figure layout
+                fig.update_layout(
+                    title_text="Pie charts for each budget",
+                    height=600 * rows,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                    width=600 * cols,    # Adjust the figure width
+                    margin=dict(t=50, l=50, r=50, b=50)   # Adjust the margins if needed
+                )
+
+                st.plotly_chart(fig, use_container_width=True)         
                 
             ###########
             ###########
@@ -907,30 +1035,30 @@ elif app_mode == 'Campaigns':
             #                 yshift=10)
 
             # col1.plotly_chart(fig, use_container_width=True)
-            with col2:
-                fig_spend = go.Figure()
-                df_current_month = filtered_df[(
-                    filtered_df[['spent_amount', 'impressions', 'cpm']] != 0).all(axis=1)]
-                platform_id_spend = df_current_month.groupby(['platform_id']).agg(
-                    {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
+            # with col2:
+            #     fig_spend = go.Figure()
+            #     df_current_month = filtered_df[(
+            #         filtered_df[['spent_amount', 'impressions', 'cpm']] != 0).all(axis=1)]
+            #     platform_id_spend = df_current_month.groupby(['platform_id']).agg(
+            #         {'spent_amount': 'sum', 'cpm': 'mean'}).reset_index().sort_values(by='spent_amount', ascending=True)
 
-                if platform_id_spend["spent_amount"].empty:
-                    max_spend = 0
-                else:
-                    max_spend = max(platform_id_spend["spent_amount"])
+            #     if platform_id_spend["spent_amount"].empty:
+            #         max_spend = 0
+            #     else:
+            #         max_spend = max(platform_id_spend["spent_amount"])
 
-                    # Add the bars
-                for index, row in platform_id_spend.iterrows():
-                    fig_spend.add_trace(go.Bar(
-                        x=[row['spent_amount']],
-                        y=[row['platform_id']],
-                        orientation='h',
-                        # this will be individual value now
-                        text=[row['spent_amount']],
-                        textposition='outside',
-                        marker_color=px.colors.qualitative.Plotly[index % len(
-                            px.colors.qualitative.Plotly)]  # cycling through colors
-                    ))
+            #         # Add the bars
+            #     for index, row in platform_id_spend.iterrows():
+            #         fig_spend.add_trace(go.Bar(
+            #             x=[row['spent_amount']],
+            #             y=[row['platform_id']],
+            #             orientation='h',
+            #             # this will be individual value now
+            #             text=[row['spent_amount']],
+            #             textposition='outside',
+            #             marker_color=px.colors.qualitative.Plotly[index % len(
+            #                 px.colors.qualitative.Plotly)]  # cycling through colors
+            #         ))
 
                     # fig_spend.update_layout(title='Current month expanses by platform',
                     # xaxis = dict(
@@ -944,58 +1072,58 @@ elif app_mode == 'Campaigns':
                 #         platform_id_spend["spent_amount"], 2)
                 #     st.table(platform_id_spend.rename(columns={
                 #         "platform_id": "Platform", "spent_amount": "Spendings", "cpm": "CPM"}).sort_values(by='Spendings', ascending=False))
-        st.divider()
+        
 
     # Campaigns abobve the budget, where budget comes from csv file #TODO
-    with st.container():
-        # campaign_limit = st.number_input('Set a campaign limit')
-        campains_grouped_budget = df_current_month.groupby(
-            ['campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
-        campains_grouped_budget["budget"] = np.nan
-        edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
-        campaigns_above_budget = edited_df[edited_df['spent_amount']
-                                           > edited_df['budget']]
+    # with st.container():
+    #     # campaign_limit = st.number_input('Set a campaign limit')
+    #     campains_grouped_budget = df_current_month.groupby(
+    #         ['campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
+    #     campains_grouped_budget["budget"] = np.nan
+    #     edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
+    #     campaigns_above_budget = edited_df[edited_df['spent_amount']
+    #                                        > edited_df['budget']]
 
-        col1, col2 = st.columns(2)
+    #     col1, col2 = st.columns(2)
 
-        col1.metric("Number of campaigns above the limit ", '❗' +
-                    str(campaigns_above_budget.shape[0]) + ' Campaigns above budget')  # TODO
-        #col1.write(campaigns_above_budget.rename(
-            #columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
+    #     col1.metric("Number of campaigns above the limit ", '❗' +
+    #                 str(campaigns_above_budget.shape[0]) + ' Campaigns above budget')  # TODO
+    #     #col1.write(campaigns_above_budget.rename(
+    #         #columns={"campaign_name": "Campaign", "spent_amount": "Spendings"}))
 
-        if col1.button('Generate plot'):
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                y=campaigns_above_budget['campaign_name'],
-                x=campaigns_above_budget['spent_amount'],
-                orientation='h',
-                name='Cost',
-                marker_color='red',
-                # <-- Add text values here
-                text=campaigns_above_budget['spent_amount'],
-                textposition='outside'
-            ))
+    #     if col1.button('Generate plot'):
+    #         fig = go.Figure()
+    #         fig.add_trace(go.Bar(
+    #             y=campaigns_above_budget['campaign_name'],
+    #             x=campaigns_above_budget['spent_amount'],
+    #             orientation='h',
+    #             name='Cost',
+    #             marker_color='red',
+    #             # <-- Add text values here
+    #             text=campaigns_above_budget['spent_amount'],
+    #             textposition='outside'
+    #         ))
 
-            # Add Budget bars
-            fig.add_trace(go.Bar(
-                y=campaigns_above_budget['campaign_name'],
-                x=campaigns_above_budget['budget'],
-                orientation='h',
-                name='Budget',
-                marker_color='blue',
-                # <-- Add text values here
-                text=campaigns_above_budget['budget'],
-                textposition='outside'  # <-- Specify text position
-            ))
+    #         # Add Budget bars
+    #         fig.add_trace(go.Bar(
+    #             y=campaigns_above_budget['campaign_name'],
+    #             x=campaigns_above_budget['budget'],
+    #             orientation='h',
+    #             name='Budget',
+    #             marker_color='blue',
+    #             # <-- Add text values here
+    #             text=campaigns_above_budget['budget'],
+    #             textposition='outside'  # <-- Specify text position
+    #         ))
 
-            # Update layout
-            fig.update_layout(
-                title='Campaign Cost vs Budget',
-                xaxis_title='Value',
-                yaxis_title='Campaign Name',
-                barmode='group'
-            )
+    #         # Update layout
+    #         fig.update_layout(
+    #             title='Campaign Cost vs Budget',
+    #             xaxis_title='Value',
+    #             yaxis_title='Campaign Name',
+    #             barmode='group'
+    #         )
 
-            col2.plotly_chart(fig, use_container_width=True)
+    #         col2.plotly_chart(fig, use_container_width=True)
 
     #st.dataframe(filtered_df.head(5))  # TODO tabulka nezarazenych kampani
