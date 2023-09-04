@@ -306,7 +306,7 @@ if app_mode == 'Analytics':
 
 elif app_mode == 'Expenses':
     with st.container():
-        col1, col2, col3 = st.columns((1,2,1), gap="small")
+        col1, col2, col3 = st.columns(3, gap="small")
     with col2:
         st.title("Expenses overview")
 
