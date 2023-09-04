@@ -305,13 +305,16 @@ if app_mode == 'Analytics':
 
 
 elif app_mode == 'Expenses':
+    with st.container():
+        col1, col2, col3 = st.columns(3, gap="small")
+    with col2:
+        st.title("Expenses overview")
 
     ##################
     # Filter section #
     ##################
     with st.container():
-        st.title("Expenses overview")
-        st.header("Filters: ")
+        
         st.session_state.campaigns = distinct_campaigns
         with st.container():
 
