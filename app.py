@@ -620,7 +620,8 @@ elif app_mode == 'Budgets':
 
                     col21, col22, col23, col24, col25 = st.columns(
                         (0.3, 0.3, 0.3, 0.3, 0.8), gap="small")
-                    if col21.button("Add Row"):
+                    if col21.button("Add Row"): #TODO: Transform it to use snowflake function insert_rows_to_snowflake(df)
+                        
                         session_state.df.loc[len(
                             session_state.df)] = session_state.row
                         session_state.row = pd.Series(index=columns)
