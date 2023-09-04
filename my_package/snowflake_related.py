@@ -7,7 +7,7 @@ import pandas as pd
 def insert_rows_to_snowflake(df):
     my_cnx = snowflake.connector.connect(
     user = "KEBOOLA_WORKSPACE_611037349",
-    password = "35zWKbK2rsWeY7aq63zZhy6EEHh4PAawM" ,
+    password = "35zWKbK2rsWeY7q63zZhy6EEHh4PAawM" ,
     account = "keboola.eu-central-1",
     warehouse = "KEBOOLA_PROD_SMALL",
     database = "KEBOOLA_3730",
