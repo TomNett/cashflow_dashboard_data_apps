@@ -42,8 +42,8 @@ apply_css()
 # --- NAVIGATION MENU --- #
 app_mode =option_menu(
     menu_title=None,
-    options=['Expenses', 'Budgets', 'Analytics'],
-    icons=["cash-coin", "wallet-fill","bar-chart-line"],
+    options=['Expenses',  'Analytics', 'Budgets', "Budget set up"],
+    icons=["cash-coin", "bar-chart-line", "wallet-fill", "pencil-square"],
     orientation="horizontal"
 )
 
@@ -518,22 +518,14 @@ elif app_mode == 'Expenses':
         except URLError as e:
             st.error()
 
-
-elif app_mode == 'Budgets':
-
-    with st.container():
-        col1, col2, col3 = st.columns(3, gap="small")
-        with col2:
-            st.title("Budget overview")
-    
-    with st.expander("Show budget table settings"):
-
+elif app_mode == 'Budget set up':
+     with st.container():
         # df_current_month = df[(df['start_date'] >= (current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
         col1, col2 = st.columns(2, gap="small")
         col11, col12 = st.columns((1.5, 1.5))
 
         col1, col2, col3 = st.columns((2, 1, 1))
-        col11.subheader('Budget editing :')
+        col11.subheader('Budget set up')
 
         df['month_name'] = pd.DatetimeIndex(df['start_date']).strftime("%B")
         current_month_name = datetime.datetime.now().strftime("%B")
@@ -600,8 +592,8 @@ elif app_mode == 'Budgets':
                         selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
                                                               ordered_list_year_month, index=default_ix,  placeholder="All months", key="month_camp")
                         if len(st.session_state.month_camp) != 0:
-                            filtered_df = df[(df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))) & (
-                                df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))]
+                            filtered_df = df[df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))] #& (
+                                #df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))
                         if len(st.session_state.source) != 0:
                             filtered_df = filtered_df[filtered_df['platform_id'].isin(
                                 st.session_state.source)]
@@ -615,20 +607,20 @@ elif app_mode == 'Budgets':
                 col1, col2 = st.columns(2)
                 # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
                 with col12:
-                    st.subheader("Entered data preview  : ")
+                    st.subheader("Entered data preview ")
                     st.table(session_state.row)
-
+                    st.error('🚨 Buttons do not work right now')
                     col21, col22, col23, col24, col25 = st.columns(
                         (0.3, 0.3, 0.3, 0.3, 0.8), gap="small")
-                    if col21.button("Add Row"): #TODO: Transform it to use snowflake function insert_rows_to_snowflake(df)
+                    if col21.button("Add Row", disabled=True): #TODO: Transform it to use snowflake function insert_rows_to_snowflake(df)
                         
                         session_state.df.loc[len(
                             session_state.df)] = session_state.row
                         session_state.row = pd.Series(index=columns)
-                    if col22.button("Change Row", key='rowchange'):
+                    if col22.button("Change Row", key='rowchange', disabled=True):
                         # TODO
                         print('Hi')
-                    if col23.button("Delete Row", key="deleterow"):
+                    if col23.button("Delete Row", key="deleterow", disabled=True):
                         col11, col12 = st.columns(2)
                         col11.warning("🚨 Specify row you want to be deleted")
                         index_to_delete = col11.number_input(
@@ -644,7 +636,7 @@ elif app_mode == 'Budgets':
                             session_state.df = delete_row_from_df(
                                 session_state.df, index_to_delete)
                             session_state.delete_pressed = False
-                    if col24.button("Clear DF"):
+                    if col24.button("Clear DF", disabled=True):
                         #session_state.df = empty_df
                         print("empty")
                 st.header("Budgets and their limits")
@@ -652,6 +644,16 @@ elif app_mode == 'Budgets':
 
         # st.dataframe(session_state.df)
         # st.data_editor(budget_df, num_rows="static")
+         
+
+elif app_mode == 'Budgets':
+
+    with st.container():
+        col1, col2, col3 = st.columns(3, gap="small")
+        with col2:
+            st.title("Budget overview")
+    
+    
 
     # filtered_df = df[(df['start_date'] >= since_date) & (df['start_date'] <= until_date)]
 
@@ -874,12 +876,28 @@ elif app_mode == 'Budgets':
             # --- TAB 2 FOR BUDGETS --- #
             
             with tab2:
+                st.header("Filters: ")
+
+                
+                with st.form("entry_form_budget_filter_tab2", clear_on_submit=False):
+                    col1f, col2f = st.columns((1.5, 3))
+                    col1f.selectbox('Select Year and Month:',
+                                                    ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
+                    col2f.multiselect('Select a source:',
+                                                        client_list, default=client_list, placeholder="Client", key="clientunique_tab2")
+                    apply_css()
+                    submitted = st.form_submit_button("Filter data",use_container_width = True)
+                    if submitted:
+                        data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))]
+                        filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["clientunique_tab2"])]
+                        filtered_df = df[df["start_date"]>= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))] 
                  #################################
                  # --- Budget over time look --- #
                  #################################
                 consolidated_daily_spend = pd.DataFrame()
+                
                 daily_spend = filtered_df.groupby(['start_date', 'campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
-                budgets = data_from_snowflake['Budget'].unique()
+                budgets = filtered_clients['Budget'].unique()
                 full_date_range = pd.date_range(start=daily_spend['start_date'].min(), end=daily_spend['start_date'].max())
                 consolidated_daily_spend = pd.DataFrame({'Date': full_date_range})
                 # Create a complete date range from the earliest to the latest date in the dataset
