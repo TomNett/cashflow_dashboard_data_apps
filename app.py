@@ -823,47 +823,50 @@ elif app_mode == 'Budgets':
                 value = filtered_clients['Budget_Amount'].tolist()
 
                 colors = ['gray' for _ in filtered_clients['Budget']]
-
+                if filtered_clients.empty:
+                    col1.warning(":face_with_monocle:" + " There is no data for this period")
+                # Adding bars for Unspent
                 # Client to Platform links
-                for index, row in filtered_clients.iterrows():
-                    platform_spends = {}  # To track spend for each platform within the loop
-                    for campaign in row['Campaings']:
-                        platform = campaign.split('-')[0]
-                        
-                        # Check if the campaign exists in campaign_spend
-                        campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
-                        if not campaign_data.empty:
-                            spend = campaign_data.iloc[0]
-                        else:
-                            spend = 0
-                        
-                        # Add or update the platform spend for this loop iteration
-                        platform_spends[platform] = platform_spends.get(platform, 0) + spend
+                else:
+                    for index, row in filtered_clients.iterrows():
+                        platform_spends = {}  # To track spend for each platform within the loop
+                        for campaign in row['Campaings']:
+                            platform = campaign.split('-')[0]
+                            
+                            # Check if the campaign exists in campaign_spend
+                            campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+                            if not campaign_data.empty:
+                                spend = campaign_data.iloc[0]
+                            else:
+                                spend = 0
+                            
+                            # Add or update the platform spend for this loop iteration
+                            platform_spends[platform] = platform_spends.get(platform, 0) + spend
 
-                    for platform, spend in platform_spends.items():
-                        source.append(labels.index(row['Client']))
-                        target.append(labels.index(platform))
-                        value.append(spend)
-                        colors.append(client_colors[row['Client']])
+                        for platform, spend in platform_spends.items():
+                            source.append(labels.index(row['Client']))
+                            target.append(labels.index(platform))
+                            value.append(spend)
+                            colors.append(client_colors[row['Client']])
 
-                # Build the Sankey chart
-                fig = go.Figure(data=[go.Sankey(
-                    node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=labels),
-                    link=dict(source=source, target=target, value=value, color=colors)
-                )])
-                fig.update_layout(title="Flow of Funds: From Budgets to Platforms via Clients")
-                fig.add_annotation(
-                    text = "This diagram visualizes the flow of money from various budgets, through different clients, and finally to distinct advertising platforms.",                                        
-                    showarrow=False,
-                    yshift=-160,
-                    font=dict(
-                            family="sans serif",
-                            size=18,
-                            color="#F1F3F4"
-                        )                     
-                    )
+                    # Build the Sankey chart
+                    fig = go.Figure(data=[go.Sankey(
+                        node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=labels),
+                        link=dict(source=source, target=target, value=value, color=colors)
+                    )])
+                    fig.update_layout(title="Flow of Funds: From Budgets to Platforms via Clients")
+                    fig.add_annotation(
+                        text = "This diagram visualizes the flow of money from various budgets, through different clients, and finally to distinct advertising platforms.",                                        
+                        showarrow=False,
+                        yshift=-160,
+                        font=dict(
+                                family="sans serif",
+                                size=18,
+                                color="#F1F3F4"
+                            )                     
+                        )
 
-                col11.plotly_chart(fig, use_container_width=True)   
+                    col11.plotly_chart(fig, use_container_width=True)   
 
                 
                  
@@ -904,7 +907,7 @@ elif app_mode == 'Budgets':
                 ind = 1
                 fig = go.Figure()
                 for budget in budgets:
-                        related_campaigns = data_from_snowflake[data_from_snowflake['Budget'] == budget]['Campaings'].explode().unique()
+                        related_campaigns = filtered_clients[filtered_clients['Budget'] == budget]['Campaings'].explode().unique()
 
                                     # Filter the daily_spend dataframe for those campaigns
                         budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)].copy()
@@ -937,53 +940,57 @@ elif app_mode == 'Budgets':
                  # --- Pie charts for budget distributtion --- #
                  ##############################################
 
-                budget_groups = data_from_snowflake.groupby('Budget')
+                
+                if filtered_clients.empty:
+                    st.warning(":face_with_monocle:" + " There is no data for this period")
+                                # Adding bars for Unspent
+                else: 
+                    budget_groups = filtered_clients.groupby('Budget')                 
+                    num_budgets = len(budget_groups)
+                    sqrt_budgets = int(np.sqrt(num_budgets))
+                    cols = sqrt_budgets if num_budgets == sqrt_budgets**2 else sqrt_budgets + 1
+                    rows = num_budgets // cols + (num_budgets % cols > 0)  # ceil operation
 
-                num_budgets = len(budget_groups)
-                sqrt_budgets = int(np.sqrt(num_budgets))
-                cols = sqrt_budgets if num_budgets == sqrt_budgets**2 else sqrt_budgets + 1
-                rows = num_budgets // cols + (num_budgets % cols > 0)  # ceil operation
+                    subplot_titles = [name for name, _ in budget_groups]
 
-                subplot_titles = [name for name, _ in budget_groups]
+                    fig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, specs=[[{'type':'domain'} for _ in range(cols)] for _ in range(rows)])
 
-                fig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, specs=[[{'type':'domain'} for _ in range(cols)] for _ in range(rows)])
+                    for index, (budget_name, group) in enumerate(budget_groups):
+                        platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
+                        
+                        for _, row in group.iterrows():
+                            for campaign in row['Campaings']:
+                                filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
 
-                for index, (budget_name, group) in enumerate(budget_groups):
-                    platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
-                    
-                    for _, row in group.iterrows():
-                        for campaign in row['Campaings']:
-                            filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+                                if not filtered.empty:
+                                    spent = filtered.iloc[0]
+                                else:
+                                    spent = None  # or some default value or handling you'd like                            
+                                
+                                if campaign in platform_spendings:
+                                    platform_spendings[campaign] += spent
+                                else:
+                                    platform_spendings[campaign] = spent
+                        
+                        labels = list(platform_spendings.keys())
+                        values = list(platform_spendings.values())
+                        
+                        row_position = index // cols + 1
+                        col_position = index % cols + 1
+                        fig.add_trace(
+                            go.Pie(labels=labels, values=values, name=budget_name),
+                            row=row_position, col=col_position
+                        )
 
-                            if not filtered.empty:
-                                spent = filtered.iloc[0]
-                            else:
-                                spent = None  # or some default value or handling you'd like                            
-                            
-                            if campaign in platform_spendings:
-                                platform_spendings[campaign] += spent
-                            else:
-                                platform_spendings[campaign] = spent
-                    
-                    labels = list(platform_spendings.keys())
-                    values = list(platform_spendings.values())
-                    
-                    row_position = index // cols + 1
-                    col_position = index % cols + 1
-                    fig.add_trace(
-                        go.Pie(labels=labels, values=values, name=budget_name),
-                        row=row_position, col=col_position
+                    # Adjusting the figure layout
+                    fig.update_layout(
+                        title_text="Pie charts for each budget",
+                        height=600 * rows,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                        width=600 * cols,    # Adjust the figure width
+                        margin=dict(t=50, l=50, r=50, b=50)   # Adjust the margins if needed
                     )
 
-                # Adjusting the figure layout
-                fig.update_layout(
-                    title_text="Pie charts for each budget",
-                    height=600 * rows,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
-                    width=600 * cols,    # Adjust the figure width
-                    margin=dict(t=50, l=50, r=50, b=50)   # Adjust the margins if needed
-                )
-
-                st.plotly_chart(fig, use_container_width=True)         
+                    st.plotly_chart(fig, use_container_width=True)         
                 
             ###########
             ###########
