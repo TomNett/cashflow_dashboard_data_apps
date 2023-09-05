@@ -28,7 +28,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 
 from my_package.html import html_code, html_footer, title
 from my_package.style import apply_css
-from my_package.snowflake_related import insert_rows_to_snowflake, fetch_data_from_snowflake
+from my_package.snowflake_related import insert_rows_to_snowflake, fetch_data_from_snowflake, delete_row_from_snowflake_by_row_id
 
 
 # Layout settings ---------------
@@ -668,25 +668,27 @@ elif app_mode == 'Budget set up':
                     st.error()
                 col1, col2 = st.columns(2)
                 # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
+                fetched_df = fetch_data_from_snowflake()
+                row_num = fetched_df.shape[0]
                 with col12:
                     st.subheader("Entered data preview ")
                     st.table(session_state.row)
-                    st.error('🚨 Buttons do not work right now')
-                    col21, col22, col23, col24, col25 = st.columns(
-                        (0.3, 0.3, 0.3, 0.3, 0.8), gap="small")
-                    if col21.button("Add Row", disabled=True): #TODO: Transform it to use snowflake function insert_rows_to_snowflake(df)
+                    
+                    
+                    if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
+                        insert_rows_to_snowflake(session_state.row)
                         
                         session_state.df.loc[len(
                             session_state.df)] = session_state.row
                         session_state.row = pd.Series(index=columns)
-                    if col22.button("Change Row", key='rowchange', disabled=True):
-                        # TODO
-                        print('Hi')
-                    if col23.button("Delete Row", key="deleterow", disabled=True):
-                        col11, col12 = st.columns(2)
-                        col11.warning("🚨 Specify row you want to be deleted")
-                        index_to_delete = col11.number_input(
-                            'ID of row', value=0)
+                    
+                    st.write("---")
+                    st.warning("⬇️ Specify budget you want to be deleted")
+                    index_to_delete = st.number_input(
+                            'Budget ID', value=0,min_value=0, max_value = row_num-1)
+                    if st.button("Delete Row", key="deleterow", disabled=False):
+                        delete_row_from_snowflake_by_row_id(index_to_delete)
+
 
                         if "delete_pressed" not in session_state:
                             session_state.delete_pressed = False
@@ -698,11 +700,12 @@ elif app_mode == 'Budget set up':
                             session_state.df = delete_row_from_df(
                                 session_state.df, index_to_delete)
                             session_state.delete_pressed = False
-                    if col24.button("Clear DF", disabled=True):
-                        #session_state.df = empty_df
-                        print("empty")
+                    st.error('Function does not work right now')
+                    if st.button("Change Row", key='rowchange', disabled=True):
+                        # TODO
+                        print('Hi')
                 st.header("Budgets and their limits")
-                st.table(session_state.df)
+                st.table(fetch_data_from_snowflake())
 
         # st.dataframe(session_state.df)
         # st.data_editor(budget_df, num_rows="static")
