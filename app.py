@@ -545,7 +545,7 @@ elif app_mode == 'Spend':
         # Charts  sections #
         ####################
         tab1, tab2 = st.tabs(
-            ["Expenses per platform_id", "Expenses per Campaign"])
+            ["Spend By Platforb", "Spend By Campaign"])
      
 
 
@@ -778,8 +778,9 @@ elif app_mode == 'Budgets':
                 col1f, col2f = st.columns((1.5, 3))
                 col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
-                col2f.multiselect('Select a source:',
+                col2f.multiselect('Select a client',
                                                     client_list, default=client_list, placeholder="Client", key="clientunique")
+                
                 apply_css()
                 submitted = st.form_submit_button("Filter data",use_container_width = True)
                 if submitted:
@@ -814,22 +815,26 @@ elif app_mode == 'Budgets':
             final_df.rename(columns={'spent_amount': 'Total_Spent'}, inplace=True)
             final_df['Unspent'] = final_df['Budget_Amount'] - final_df['Total_Spent']
             final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)
-            final_df = final_df.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
+            budgets_above_budget = final_df[final_df["Total_Spent"]> final_df['Budget_Amount']]
+            budgets_below_budget = final_df[final_df["Total_Spent"] <  final_df['Budget_Amount']]
+            budgets_below_budget = budgets_below_budget.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
 
             
             
             # --- Printing filtered data in second column --- #
             col2.markdown(title["inputdata"], unsafe_allow_html=True)
-            col2.write(final_df)
+            col2.write(budgets_below_budget)
+            col2.warning(" ⬇️ Spendings exceed budget limit")
+            col2.write(budgets_above_budget)
 
             # --- Creating plot for client's budget --- #
-            if final_df.empty:
+            if budgets_below_budget.empty:
                 col1.warning(":face_with_monocle:" + " There is no data for this period")
                 # Adding bars for Unspent
             else: 
                 # Adding bars for Total Spent
                 fig_spend = go.Figure()
-                for index, row in final_df.iterrows():
+                for index, row in budgets_below_budget.iterrows():
                     fig_spend.add_trace(go.Bar(
                             x=[row['Total spend']],
                             y=[row['Client']],
@@ -840,7 +845,7 @@ elif app_mode == 'Budgets':
                             textfont_color = 'white',
                             marker_color='#d33682'
                         ))
-                for index, row in final_df.iterrows():
+                for index, row in budgets_below_budget.iterrows():
                         fig_spend.add_trace(go.Bar(
                             x=[row['Unspent']],
                             y=[row['Client']],
@@ -851,10 +856,16 @@ elif app_mode == 'Budgets':
                             marker_color=px.colors.qualitative.Plotly[2]  # Using a fixed color for Unspent
                         ))
                    # Update layout settings
-                max_budget = final_df['Budget amount'].max()
-                fig_spend.update_layout(title='Client Spent vs Budget',
+                max_budget = budgets_below_budget['Budget amount'].max()
+                max_spend = budgets_below_budget['Total spend'].max()
+                if max_budget >= max_spend:
+                    max_v = max_budget
+                else:
+                    max_v = max_spend
+
+                fig_spend.update_layout(title='Client Spend vs Budget',
                                             xaxis=dict(
-                                                range=[0, max_budget * 1.10], title='EUR'),
+                                                range=[0, max_v * 1.10], title='EUR'),
                                             yaxis_title='',
                                             barmode='stack',
                                             showlegend=False)
