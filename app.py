@@ -1,7 +1,8 @@
 # TODO Dispaly only campaigns, which are not selected
 # TODO scenare pro kampan  - pridat ?
 # TODO: create a filter which will show only campaigns which are not related to a specific budget 
-
+# TODO: Zobrazit kampani ktere bezi v vyprsenem budgetu 
+# TODO vsechno v eurech
 # mesice a vypotrebovany budget
 # pak bude analyza konkrenti kampani
 
@@ -160,8 +161,8 @@ metrics_list = [ 'reach', 'impressions', 'frequency', 'cpm',
        'video_views', 'six_sec_video_view', 'full_video_view',
         'landing_page_clicks', 'paid_comments',
        'paid_likes', 'paid_shares']
-most_frequent_metrics = [ 'reach', 'impressions', 'frequency', 'cpm',
-       'link_clicks', 'ctr']
+most_frequent_metrics = [ 'reach', 'impressions','link_clicks',  'cpm',
+        'ctr', 'frequency']
 
 month_year_list = create_month_year_list(months_order, df)
 
@@ -350,7 +351,7 @@ if app_mode == 'Analytics':
             ("Clicks:", total_clicks),
             ("Total spendings:", total_clicks),
             ("Click-Through Rate:", average_ctr),                
-            ("Reach ",average_cpm ),
+            ("Reach ",total_reach ),
             ("Average Cost per Mile:",average_cpm ),
             
         ]
@@ -378,6 +379,8 @@ if app_mode == 'Analytics':
             formated_number = number
             if('cost' in metric_label.lower()):
                 formated_number = f'{number} €'
+            if('spend' in metric_label.lower()):
+                formated_number = f'{number} €'
             if('rate' in metric_label.lower()):
                 formated_number = f'{number} %'
                 
@@ -400,27 +403,27 @@ if app_mode == 'Analytics':
                 </div>
                 ''', unsafe_allow_html=True)
         st.write("---")
+        selected_metrics = st.multiselect('Select metrics', metrics_list, default=most_frequent_metrics,key="selectedmetrics")
+        tab1, tab2, tab3, tab4 = st.tabs(
+            ["Best performing Campaigns","Visualizations per Platform", "Visualizations per Campaigns", "Raw data"])
         
-        tab1, tab2, tab3 = st.tabs(
-            ["Best performing Campaigns", "Visualizations per Campaigns", "Raw data"])
-        grouped = filtered_df.groupby(['campaign_name', 'start_date']).agg(
-            {'link_clicks': 'sum', 'impressions': 'sum'}).reset_index()
-        grouped['ctr'] = (grouped['link_clicks'] /
-                          grouped['impressions']) * 100
-        Campaigns_df = grouped.copy()
-        max_campaign = Campaigns_df["ctr"].max()
+        # grouped['ctr'] = (grouped['link_clicks'] /
+        #                   grouped['impressions']) * 100
+        # Campaigns_df = grouped.copy()
+        # max_campaign = Campaigns_df["ctr"].max()
         
         
         with tab1:
-            selected_metrics = st.multiselect('Select metrics', metrics_list, default=most_frequent_metrics,key="selectedmetrics")
+            
             agg_dict = {metric: 'sum' for metric in selected_metrics}
-            df_top_campaign = filtered_df.groupby(['platform_id', 'campaign_name', 'start_date']).agg(agg_dict).reset_index()   
+            df_top_campaign = filtered_df.groupby(['platform_id', 'campaign_name', 'start_date']).agg(agg_dict).reset_index()
             
             st.markdown(title["topcampains"], unsafe_allow_html=True)
-            st.write(df_top_campaign.head(5))
+            df_sorted = df_top_campaign.sort_values(by=['reach', 'impressions','link_clicks'], ascending=[False, False,False])
+            st.dataframe(df_sorted.head(5))
             col1, col2 = st.columns(2)
-            ctr_mean = round(np.mean(filtered_df["ctr"]), 2)
-            col1.metric("Average Clickthrough rate", str(ctr_mean) + ' %')
+            ctr_mean = round(np.mean(df_sorted["ctr"]), 2)
+            col1.metric("Average Clickthrough Rate Of Top Performing Campaigns", str(ctr_mean) + ' %')
             target_value = col1.slider('Target Clickthrough Rate', 0.0, 5.0, 0.5)
             target_value = 0.5
             fig = px.bar(x=[ctr_mean],
@@ -443,18 +446,18 @@ if app_mode == 'Analytics':
 
             
 
-            cpm_mean = round(np.mean(filtered_df["cpm"]), 2)
-            max_cpm = np.max(filtered_df["cpm"])
-            col2.metric("Cost per mille", str(cpm_mean) + ' EUR')
-            cpm_mean = round(np.mean(filtered_df["cpm"]), 2)
-            max_cpm_range = cpm_mean + 10
-            target_value_cpm = col2.slider('Target Clickthrough Rate', 0.0, 30.0, 5.0)
+            cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
+            max_cpm = np.max(df_sorted["cpm"])
+            col2.metric("Cost Per Mille Of Top Performing Campaigns", str(cpm_mean) + ' EUR')
+            cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
+            max_cpm_range = cpm_mean
+            target_value_cpm = col2.slider('Target Clickthrough Rate', 0.0, cpm_mean*1.2, cpm_mean/2)
             fig = px.bar(x=[cpm_mean],
                          y=['cpm'],
                          orientation='h',
                          labels={'x': 'EUR', 'y': ''},
                          title='Average CPM')
-            fig.update_layout(xaxis=dict(range=[0, max_cpm_range]), height=200)
+            fig.update_layout(xaxis=dict(range=[0, cpm_mean*1.2]), height=200)
             fig.update_traces(marker_color='rgb(255, 75, 75)')
             fig.add_shape(type="line",
                           x0=target_value_cpm, y0=0, x1=target_value_cpm, y1=1,
@@ -469,40 +472,75 @@ if app_mode == 'Analytics':
             col2.plotly_chart(fig, use_container_width=True)
 
         with tab2:
-            # # Display title for the "Campaigns" section
-            st.markdown(title["impressions"], unsafe_allow_html=True)
-            fig = px.bar(Campaigns_df, x="start_date",
-                         y="impressions", color="campaign_name")
-            # st.bar_chart(data = Campaigns_df, x="start_date", y="impressions",use_container_width=True)
-            # fig = px.bar(Campaigns_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
-            fig.update_layout(xaxis_title='Date', yaxis_title='impressions')
-            # # Display the bar chart
-            st.plotly_chart(fig, use_container_width=True)
+            #col1, col2 = st.columns(2)
+            #with col1:
 
-            # Clicks
-            st.markdown(title["clicks"], unsafe_allow_html=True)
-            fig = px.bar(Campaigns_df, x="start_date", y="link_clicks",
-                         color="campaign_name")  # , color="source"
-            fig.update_layout(
-                xaxis_title='Date',
-                yaxis_title='Clicks',
-            )
-            # Display the bar chart
-            st.plotly_chart(fig, use_container_width=True)
-
-            st.markdown(title["clicktr"], unsafe_allow_html=True)
-            fig = px.line(Campaigns_df, x="start_date", y="ctr",
-                          color="campaign_name")  # , color="source"
-
-            # # Update layout
-            fig.update_layout(
-                xaxis_title='Date',
-                yaxis_title='Click-Through Rate %',
-            )
-            fig.update_yaxes(range=[0, max_campaign+5])
-            st.plotly_chart(fig, use_container_width=True)
-
+            for metric in selected_metrics:
+                st.subheader(metric + ' chart')
+                if metric in filtered_df.columns:
+                    fig = px.bar(filtered_df, x="start_date", y=metric, color="platform_id")
+                    fig.update_layout(xaxis_title='Date', yaxis_title=metric)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.write(f"The metric '{metric}' is not available in the data.")
         with tab3:
+            
+            for metric in selected_metrics:
+                if metric in filtered_df.columns:
+                    fig = px.bar(filtered_df, x="start_date", y=metric, color="campaign_name")
+                    fig.update_layout(xaxis_title='Date', yaxis_title=metric)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.write(f"The metric '{metric}' is not available in the data.")
+            #with col2:
+                # for metric in selected_metrics:
+                #     if metric in filtered_df.columns:
+                #         fig = px.line(filtered_df, x="start_date", y=metric, color="campaign_name")
+                        
+                #         # Update layout
+                #         fig.update_layout(
+                #             xaxis_title='Date',
+                #             yaxis_title=metric,
+                #         )
+                #         fig.update_yaxes(range=[0, filtered_df[metric].max() + 5])
+                        
+                #         st.plotly_chart(fig, use_container_width=True)
+                #     else:
+                #         st.write(f"The metric '{metric}' is not available in the data.")
+            # # # Display title for the "Campaigns" section
+            # st.markdown(title["impressions"], unsafe_allow_html=True)
+            # fig = px.bar(Campaigns_df, x="start_date",
+            #              y="impressions", color="campaign_name")
+            # # st.bar_chart(data = Campaigns_df, x="start_date", y="impressions",use_container_width=True)
+            # # fig = px.bar(Campaigns_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
+            # fig.update_layout(xaxis_title='Date', yaxis_title='impressions')
+            # # # Display the bar chart
+            # st.plotly_chart(fig, use_container_width=True)
+
+            # # Clicks
+            # st.markdown(title["clicks"], unsafe_allow_html=True)
+            # fig = px.bar(Campaigns_df, x="start_date", y="link_clicks",
+            #              color="campaign_name")  # , color="source"
+            # fig.update_layout(
+            #     xaxis_title='Date',
+            #     yaxis_title='Clicks',
+            # )
+            # # Display the bar chart
+            # st.plotly_chart(fig, use_container_width=True)
+
+            # st.markdown(title["clicktr"], unsafe_allow_html=True)
+            # fig = px.line(Campaigns_df, x="start_date", y="ctr",
+            #               color="campaign_name")  # , color="source"
+
+            # # # Update layout
+            # fig.update_layout(
+            #     xaxis_title='Date',
+            #     yaxis_title='Click-Through Rate %',
+            # )
+            # fig.update_yaxes(range=[0, max_campaign+5])
+            # st.plotly_chart(fig, use_container_width=True)
+
+        with tab4:
             st.markdown('Dataset :')
             st.write(df.head())
 
@@ -942,7 +980,7 @@ elif app_mode == 'Budgets':
         
         # Tabs for visuals
         tab1, tab2 = st.tabs(
-            ["Cleent overview", "Detailed Budget Examination"])
+            ["Client overview", "Detailed Budget Examination"])
         with tab1:
             st.header("Filters: ")
             # Create two columns for filter controls
