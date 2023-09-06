@@ -109,14 +109,14 @@ def last_day_month(selected_year_month):
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
     data_from_snowflake = fetch_data_from_snowflake()
-    for l in data_from_snowflake["CAMPAINGS"]:
+    for l in data_from_snowflake["CAMPAIGNS"]:
         for c in l:
             campaigns_from_snowflake.append(c)
     return campaigns_from_snowflake
 
 def camp_for_sorting(df):
     campaigns_for_sorting = []
-    for campaigns_list in df['Campaings']:
+    for campaigns_list in df['Campaigns']:
         for campaign in campaigns_list:
             campaigns_for_sorting.append(campaign)
     campaigns_for_sorting = list(set(campaigns_for_sorting))
@@ -418,65 +418,67 @@ if app_mode == 'Analytics':
             agg_dict = {metric: 'sum' for metric in selected_metrics}
             df_top_campaign = filtered_df.groupby(['platform_id', 'campaign_name', 'start_date']).agg(agg_dict).reset_index()
             
-            st.markdown(title["topcampains"], unsafe_allow_html=True)
-            df_sorted = df_top_campaign.sort_values(by=['reach', 'impressions','link_clicks'], ascending=[False, False,False])
+            st.markdown(title["topcampaigns"], unsafe_allow_html=True)
+            boolean_list = [False for _ in selected_metrics]
+            df_sorted = df_top_campaign.sort_values(by=selected_metrics, ascending=boolean_list)
             st.dataframe(df_sorted.head(5))
             col1, col2 = st.columns(2)
-            ctr_mean = round(np.mean(df_sorted["ctr"]), 2)
-            col1.metric("Average Clickthrough Rate Of Top Performing Campaigns", str(ctr_mean) + ' %')
-            target_value = col1.slider('Target Clickthrough Rate', 0.0, 5.0, 0.5)
-            target_value = 0.5
-            fig = px.bar(x=[ctr_mean],
-                         y=['ctr'],
-                         orientation='h',
-                         labels={'x': '%', 'y': ''},
-                         title='Average Clickthrough rate')
-            fig.update_layout(xaxis=dict(range=[0, 5]), height=200)
-            fig.update_traces(marker_color='rgb(255, 75, 75)')
-            fig.add_annotation(x=ctr_mean * 100, y='ctr',
-                               # format the number to 2 decimal places
-                               text=f"{ctr_mean * 100:.2f}%",
-                               showarrow=False,
-                               yshift=20)
-            fig.add_shape(type="line",
-                          x0=target_value, y0=0, x1=target_value, y1=1,
-                          line=dict(color='rgb(64, 224, 208)', width=6),
-                          xref='x', yref='paper')
-            col1.plotly_chart(fig, use_container_width=True)
+            if 'ctr' in selected_metrics:
+                ctr_mean = round(np.mean(df_sorted["ctr"]), 2)
+                col1.metric("Average Clickthrough Rate Of Top Performing Campaigns", str(ctr_mean) + ' %')
+                target_value = col1.slider('Target Clickthrough Rate', 0.0, 5.0, 0.5)
+                target_value = 0.5
+                fig = px.bar(x=[ctr_mean],
+                            y=['ctr'],
+                            orientation='h',
+                            labels={'x': '%', 'y': ''},
+                            title='Average Clickthrough rate')
+                fig.update_layout(xaxis=dict(range=[0, 5]), height=200)
+                fig.update_traces(marker_color='rgb(255, 75, 75)')
+                fig.add_annotation(x=ctr_mean * 100, y='ctr',
+                                # format the number to 2 decimal places
+                                text=f"{ctr_mean * 100:.2f}%",
+                                showarrow=False,
+                                yshift=20)
+                fig.add_shape(type="line",
+                            x0=target_value, y0=0, x1=target_value, y1=1,
+                            line=dict(color='rgb(64, 224, 208)', width=6),
+                            xref='x', yref='paper')
+                col1.plotly_chart(fig, use_container_width=True)
 
             
+            if 'cpm' in selected_metrics:
+                cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
+                max_cpm = np.max(df_sorted["cpm"])
+                col2.metric("Cost Per Mille Of Top Performing Campaigns", str(cpm_mean) + ' EUR')
+                cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
+                max_cpm_range = cpm_mean
+                target_value_cpm = col2.slider('Target Clickthrough Rate', 0.0, cpm_mean*1.2, cpm_mean/2)
+                fig = px.bar(x=[cpm_mean],
+                            y=['cpm'],
+                            orientation='h',
+                            labels={'x': 'EUR', 'y': ''},
+                            title='Average CPM')
+                fig.update_layout(xaxis=dict(range=[0, cpm_mean*1.2]), height=200)
+                fig.update_traces(marker_color='rgb(255, 75, 75)')
+                fig.add_shape(type="line",
+                            x0=target_value_cpm, y0=0, x1=target_value_cpm, y1=1,
+                            line=dict(color='rgb(64, 224, 208)', width=6),
+                            xref='x', yref='paper')
+                fig.add_annotation(x=cpm_mean, y='cpm',
+                                # format the number to 2 decimal places
+                                text=f"{cpm_mean:.2f} EUR",
+                                showarrow=False,
+                                yshift=20)
 
-            cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
-            max_cpm = np.max(df_sorted["cpm"])
-            col2.metric("Cost Per Mille Of Top Performing Campaigns", str(cpm_mean) + ' EUR')
-            cpm_mean = round(np.mean(df_sorted["cpm"]), 2)
-            max_cpm_range = cpm_mean
-            target_value_cpm = col2.slider('Target Clickthrough Rate', 0.0, cpm_mean*1.2, cpm_mean/2)
-            fig = px.bar(x=[cpm_mean],
-                         y=['cpm'],
-                         orientation='h',
-                         labels={'x': 'EUR', 'y': ''},
-                         title='Average CPM')
-            fig.update_layout(xaxis=dict(range=[0, cpm_mean*1.2]), height=200)
-            fig.update_traces(marker_color='rgb(255, 75, 75)')
-            fig.add_shape(type="line",
-                          x0=target_value_cpm, y0=0, x1=target_value_cpm, y1=1,
-                          line=dict(color='rgb(64, 224, 208)', width=6),
-                          xref='x', yref='paper')
-            fig.add_annotation(x=cpm_mean, y='cpm',
-                               # format the number to 2 decimal places
-                               text=f"{cpm_mean:.2f} EUR",
-                               showarrow=False,
-                               yshift=20)
-
-            col2.plotly_chart(fig, use_container_width=True)
+                col2.plotly_chart(fig, use_container_width=True)
 
         with tab2:
             #col1, col2 = st.columns(2)
             #with col1:
 
             for metric in selected_metrics:
-                st.subheader(metric + ' chart')
+                st.subheader(metric.title() + ' chart')
                 if metric in filtered_df.columns:
                     fig = px.bar(filtered_df, x="start_date", y=metric, color="platform_id")
                     fig.update_layout(xaxis_title='Date', yaxis_title=metric)
@@ -486,6 +488,7 @@ if app_mode == 'Analytics':
         with tab3:
             
             for metric in selected_metrics:
+                st.subheader(metric.title() + ' chart')
                 if metric in filtered_df.columns:
                     fig = px.bar(filtered_df, x="start_date", y=metric, color="campaign_name")
                     fig.update_layout(xaxis_title='Date', yaxis_title=metric)
@@ -897,29 +900,46 @@ elif app_mode == 'Budget set up':
                         session_state.row = pd.Series(index=columns)
                     
                     st.write("---")
-                    st.warning("⬇️ Specify budget you want to be deleted")
+                    
                     index_to_delete = st.number_input(
                             'Budget ID', value=0,min_value=0, max_value = row_num-1)
+                    
+                    st.warning(""" Specify a budget you want to ***delete*** or ***change*** """)
                     if st.button("Delete Row", key="deleterow", disabled=False):
                         delete_row_from_snowflake_by_row_id(index_to_delete)
+                        data_df = pd.DataFrame(fetch_data_from_snowflake())
 
+                        
 
-                        if "delete_pressed" not in session_state:
-                            session_state.delete_pressed = False
+                        
+                    # st.error('Function does not work right now')
+                    # if st.button("Change Row", key='rowchange', disabled=True):
+                    #     # TODO
+                    #     print('Hi')
+                st.header("Budgets and their limits")                
+                current_budgets = fetch_data_from_snowflake()
+                current_budgets['CAMPAIGNS'] = current_budgets['CAMPAIGNS'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
-                        if col11.button("Delete", key="deleter"):
-                            session_state.delete_pressed = True
+                # Convert entire dataframe to HTML and use st.write to display
+                st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
+                
+                
 
-                        if session_state.delete_pressed:
-                            session_state.df = delete_row_from_df(
-                                session_state.df, index_to_delete)
-                            session_state.delete_pressed = False
-                    st.error('Function does not work right now')
-                    if st.button("Change Row", key='rowchange', disabled=True):
-                        # TODO
-                        print('Hi')
-                st.header("Budgets and their limits")
-                st.table(fetch_data_from_snowflake())
+                # data_df = st.data_editor(
+                #     data_df,
+                #     column_config={
+                #         "Selected row": st.column_config.CheckboxColumn(
+                #             "Selection column",
+                #             help="Select  **column** ",
+                #             default=False,
+                #         )
+                #     },
+                #     disabled=["CLIENT", "BUDGET", "BUDGET_AMOUNT", "CURRENCY", "SINCE_DATE", "UNTIL_DATE", "CAMPAIGNS"],
+                #     hide_index=True,
+                # )
+                
+                
+                
 
         # st.dataframe(session_state.df)
         # st.data_editor(budget_df, num_rows="static")
@@ -1022,7 +1042,7 @@ elif app_mode == 'Budgets':
             platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
                         {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
 
-            mapping = data_from_snowflake.explode('Campaings')[['Client', 'Campaings']].rename(columns={'Campaings': 'campaign_name'})
+            mapping = data_from_snowflake.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
             merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
             total_spent_per_client = merged.groupby('Client')['spent_amount'].sum().reset_index()
             final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
@@ -1148,7 +1168,7 @@ elif app_mode == 'Budgets':
                 col11.warning("🧐" +"There are no data for this date and client")  
             else:                 
                 for index, row in filtered_clients.iterrows():
-                    for campaign in row['Campaings']:
+                    for campaign in row['Campaigns']:
                         platform = campaign.split('-')[0]
 
                         # Check if the campaign exists in campaign_spend
@@ -1247,7 +1267,7 @@ elif app_mode == 'Budgets':
                 ind = 1
                 fig = go.Figure()
                 for budget in budgets:
-                        related_campaigns = filtered_clients[filtered_clients['Budget'] == budget]['Campaings'].explode().unique()
+                        related_campaigns = filtered_clients[filtered_clients['Budget'] == budget]['Campaigns'].explode().unique()
 
                                     # Filter the daily_spend dataframe for those campaigns
                         budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)].copy()
@@ -1299,7 +1319,7 @@ elif app_mode == 'Budgets':
                         platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
                         
                         for _, row in group.iterrows():
-                            for campaign in row['Campaings']:
+                            for campaign in row['Campaigns']:
                                 filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
 
                                 if not filtered.empty:
@@ -1430,10 +1450,10 @@ elif app_mode == 'Budgets':
     # Campaigns abobve the budget, where budget comes from csv file #TODO
     # with st.container():
     #     # campaign_limit = st.number_input('Set a campaign limit')
-    #     campains_grouped_budget = df_current_month.groupby(
+    #     campaigns_grouped_budget = df_current_month.groupby(
     #         ['campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
-    #     campains_grouped_budget["budget"] = np.nan
-    #     edited_df = st.data_editor(campains_grouped_budget, num_rows="dynamic")
+    #     campaigns_grouped_budget["budget"] = np.nan
+    #     edited_df = st.data_editor(campaigns_grouped_budget, num_rows="dynamic")
     #     campaigns_above_budget = edited_df[edited_df['spent_amount']
     #                                        > edited_df['budget']]
 

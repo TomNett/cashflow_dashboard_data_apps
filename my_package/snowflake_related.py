@@ -50,11 +50,13 @@ def fetch_data_from_snowflake():
         df = pd.read_sql(query, cur)
 
         # Process the Campaings column
-        df['CAMPAINGS'] = df['CAMPAINGS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
+        df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
         cur.close()
     return df
 
-def delete_row_from_snowflake_by_row_id(row_id):
+
+
+def delete_row_from_snowflake_by_row_id(index):
     my_cnx = snowflake.connector.connect(
         user="KEBOOLA_WORKSPACE_611037349",
         password="35zWKbK2rsWeY7q63zZhy6EEHh4PAawM",
@@ -64,19 +66,20 @@ def delete_row_from_snowflake_by_row_id(row_id):
         schema="WORKSPACE_611037349"
     )
     
+
     # SQL statement to delete a row based on its row_id
     sql = f"""
-    DELETE FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget 
-    WHERE (CLIENT, SINCE_DATE) IN 
-        (SELECT CLIENT, SINCE_DATE
-        FROM 
-            (SELECT CLIENT, SINCE_DATE, 
-                 ROW_NUMBER() OVER (ORDER BY SINCE_DATE) AS rownum
-          FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget)
-     WHERE rownum = {row_id});
-    """
-    
-    # Execute the SQL
+        DELETE FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget 
+        WHERE (CLIENT, SINCE_DATE) IN 
+            (SELECT CLIENT, SINCE_DATE
+            FROM 
+                (SELECT CLIENT, SINCE_DATE, 
+                    ROW_NUMBER() OVER (ORDER BY SINCE_DATE) AS rownum
+            FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget)
+        WHERE rownum = {index});
+        """
+        
+        # Execute the SQL
     with my_cnx.cursor() as cur:
         cur.execute(sql)
     

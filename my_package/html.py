@@ -40,6 +40,6 @@ title = {
     "rawData":'<p class="subheader">Raw data</p>',
     "description":'<p class="subheader">Description</p>',
     "sourcesPerClick":'<p class="subheader">Top 10 Marketing Sources</p>',
-    "topcampains":'<p class="subheader">Top Performing Campaigns</p>',
+    "topcampaigns":'<p class="subheader">Top Performing Campaigns</p>',
     "inputdata":'<p class="subheader">Filtered data </p>'
 }
