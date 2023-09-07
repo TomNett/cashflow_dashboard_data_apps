@@ -45,7 +45,7 @@ def insert_rows_to_snowflake(row):
         'currency': currency,
         'since_date': since,
         'until_date': until,
-        'campaigns': campaigns_string
+        'campaigns': [campaigns_string]
     }
     results = pd.DataFrame(data_dict)
     results.to_csv('./results.csv.gz', index=False, compression='gzip')
