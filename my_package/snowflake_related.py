@@ -6,6 +6,7 @@ from kbcstorage.client import Client
 import streamlit as st
 client = Client(st.secrets.kbc_url, st.secrets.kbc_token)
 
+
 def fetch_data_from_snowflake():
     file_path = "/data/in/tables/campaign_budget.csv"
     
@@ -20,33 +21,32 @@ def fetch_data_from_snowflake():
 
 
 def insert_rows_to_snowflake(row):
-    my_cnx = snowflake.connector.connect(
-    user = "KEBOOLA_WORKSPACE_611037349",
-    password = "35zWKbK2rsWeY7q63zZhy6EEHh4PAawM" ,
-    account = "keboola.eu-central-1",
-    warehouse = "KEBOOLA_PROD_SMALL",
-    database = "KEBOOLA_3730",
-    schema = "WORKSPACE_611037349")
      # Extract data from Series
-    client = row['Client']
-    budget = row['Budget']
-    amount = row['Budget amount']
-    currency = row['Currency']
-    since = row['Since date']
-    until = row['Until date']
-    campaigns_string = ",".join(row['Campaigns']).replace("'", "''")  # Convert the list to a comma-separated string and escape any single quotes
+    src_id = row['client'] + "-" + row['budget']
+    client = row['client']
+    budget = row['budget']
+    amount = row['budget_amount']
+    currency = row['currency']
+    since = row['since_date']
+    until = row['until_date']
+    campaigns_string = ",".join(row['campaigns']).replace("'", "''")  # Convert the list to a comma-separated string and escape any single quotes
 
-    # SQL statement
-    sql = (f"INSERT INTO KEBOOLA_3730.WORKSPACE_611037349.campaing_budget "
-                   f"(client, budget, budget_amount, currency, since_date, until_date, campaigns) "
-                   f"SELECT '{client}', '{budget}', {amount}, '{currency}', '{since}', '{until}', "
-                   f"SPLIT('{campaigns_string}', ',') AS campaigns;")
-                   
-            
-    # Cursor for Snowflake and Execute the SQL
-    with my_cnx.cursor() as cur:
-        cur.execute(sql)
-    my_cnx.close()
+
+
+    data_dict = {
+        'src_id': src_id,
+        'client': client,
+        'budget': budget,
+        'budget_amount': amount,
+        'currency': currency,
+        'since_date': since,
+        'until_date': until,
+        'campaigns': campaigns_string
+    }
+    results = pd.DataFrame(data_dict)
+    results.to_csv('./results.csv.gz', index=False, compression='gzip')
+    client.tables.load(table_id='out.c-Marketing_cash_flow.campaign_budget', file_path='./results.csv.gz', is_incremental=True)
+    
     print("Success")
  
 
