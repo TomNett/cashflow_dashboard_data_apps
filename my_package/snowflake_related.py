@@ -1,7 +1,19 @@
 import snowflake.connector
 import ast
 import pandas as pd
+import os
+from kbcstorage.client import Client
+import streamlit as st
+client = Client(st.secrets.kbc_url, st.secrets.kbc_token)
 
+def fetch_data_from_snowflake():
+    file_path = "/data/in/tables/campaign_budget.csv.csv"
+    
+    df = pd.read_csv(file_path)
+    df['CAMPAIGNS'] = [campaign.strip() for campaign in df['CAMPAIGNS'].split(',')]
+    # Process the Campaigns column
+    #df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
+    return df
 
 
 def insert_rows_to_snowflake(row):
@@ -34,25 +46,7 @@ def insert_rows_to_snowflake(row):
     my_cnx.close()
     print("Success")
  
-def fetch_data_from_snowflake():
-    my_cnx = snowflake.connector.connect(
-    user = "KEBOOLA_WORKSPACE_611037349",
-    password = "35zWKbK2rsWeY7q63zZhy6EEHh4PAawM" ,
-    account = "keboola.eu-central-1",
-    warehouse = "KEBOOLA_PROD_SMALL",
-    database = "KEBOOLA_3730",
-    schema = "WORKSPACE_611037349")
-    with my_cnx as cur:
-        # SQL query to fetch data
-        query = "SELECT * FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget;"
 
-        # Fetch data and transform into DataFrame
-        df = pd.read_sql(query, cur)
-
-        # Process the Campaigns column
-        df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
-        cur.close()
-    return df
 
 
 
