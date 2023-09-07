@@ -902,10 +902,12 @@ elif app_mode == 'Budget set up':
                         session_state.row = pd.Series(index=columns)
                     
                     st.write("---")
-                    
-                    index_to_delete = st.number_input(
-                            'Budget ID', value=0,min_value=0, max_value = row_num-1)
-                    
+                    if row_num ==0 :
+                        index_to_delete = st.number_input(
+                                'Budget ID', value=0,min_value=0, max_value = row_num)
+                    else:
+                        index_to_delete = st.number_input(
+                                    'Budget ID', value=0,min_value=0, max_value = row_num-1)
                     st.warning(""" Specify a budget you want to ***delete*** or ***change*** """)
                     if st.button("Delete Row", key="deleterow", disabled=False):
                         delete_row_from_snowflake_by_row_id(index_to_delete)
@@ -996,7 +998,10 @@ elif app_mode == 'Budgets':
         data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
         data_from_snowflake['Until_Date'] = pd.to_datetime(data_from_snowflake['Until_Date'])
         client_list = data_from_snowflake["Client"].unique()
-        default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
+        if data_from_snowflake['Since_Date'].empty:
+            default_ix_for_filter = months_order.index(current_month_name)
+        else:
+            default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
         
         ##
         
