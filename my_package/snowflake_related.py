@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from kbcstorage.client import Client
 import streamlit as st
+
 client = Client(st.secrets.kbc_url, st.secrets.kbc_token)
 
 
