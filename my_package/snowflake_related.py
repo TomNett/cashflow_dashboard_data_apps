@@ -7,8 +7,6 @@ import streamlit as st
 
 
 
-client = Client(kbc_url, kbc_token)
-
 
 def fetch_data_from_snowflake():
     file_path = "/data/in/tables/campaign_budget.csv"
