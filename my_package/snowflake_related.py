@@ -10,7 +10,10 @@ def fetch_data_from_snowflake():
     file_path = "/data/in/tables/campaign_budget.csv"
     
     df = pd.read_csv(file_path)
-    df['CAMPAIGNS'] = [campaign.strip() for campaign in df['CAMPAIGNS'].split(',')]
+    changed_column = []
+    for str in df['CAMPAIGNS']:
+        changed_column.append(campaign.strip() for campaign in str.split(','))
+    df['CAMPAIGNS'] = changed_column
     # Process the Campaigns column
     #df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
     return df
