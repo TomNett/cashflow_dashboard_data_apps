@@ -23,9 +23,9 @@ def insert_rows_to_snowflake(row):
 
     # SQL statement
     sql = (f"INSERT INTO KEBOOLA_3730.WORKSPACE_611037349.campaing_budget "
-                   f"(client, budget, budget_amount, currency, since_date, until_date, campaings) "
+                   f"(client, budget, budget_amount, currency, since_date, until_date, campaigns) "
                    f"SELECT '{client}', '{budget}', {amount}, '{currency}', '{since}', '{until}', "
-                   f"SPLIT('{campaigns_string}', ',') AS campaings;")
+                   f"SPLIT('{campaigns_string}', ',') AS campaigns;")
                    
             
     # Cursor for Snowflake and Execute the SQL
@@ -49,7 +49,7 @@ def fetch_data_from_snowflake():
         # Fetch data and transform into DataFrame
         df = pd.read_sql(query, cur)
 
-        # Process the Campaings column
+        # Process the Campaigns column
         df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
         cur.close()
     return df
