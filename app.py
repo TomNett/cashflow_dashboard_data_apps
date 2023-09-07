@@ -878,7 +878,7 @@ elif app_mode == 'Budget set up':
                                 st.session_state.source)]
                             
                             distinct_campaigns_by_platform =  filtered_df[~df['campaign_name'].isin(get_ditinct_campaigns_from_snowflake())]
-                            distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
+                            distinct_campaigns_by_platform = distinct_campaigns_by_platform['campaign_name'].unique()
                         session_state.row[col] = col11.multiselect('Select a campaign:',
                                                                    distinct_campaigns_by_platform, default=None, placeholder="All campaigns", key="campaign")
                 except URLError as e:
