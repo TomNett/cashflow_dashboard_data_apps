@@ -15,7 +15,7 @@ def fetch_data_from_snowflake():
         changed_column.append(campaign.strip() for campaign in str.split(','))
     df['campaigns'] = changed_column
     # Process the Campaigns column
-    #df['CAMPAIGNS'] = df['CAMPAIGNS'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
+    #df['campaigns'] = df['campaigns'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
     return df
 
 

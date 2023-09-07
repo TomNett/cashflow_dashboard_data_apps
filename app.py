@@ -109,7 +109,7 @@ def last_day_month(selected_year_month):
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
     data_from_snowflake = fetch_data_from_snowflake()
-    for l in data_from_snowflake["CAMPAIGNS"]:
+    for l in data_from_snowflake["campaigns"]:
         for c in l:
             campaigns_from_snowflake.append(c)
     return campaigns_from_snowflake
@@ -922,7 +922,7 @@ elif app_mode == 'Budget set up':
                     #     print('Hi')
                 st.header("Budgets and their limits")                
                 current_budgets = fetch_data_from_snowflake()
-                current_budgets['CAMPAIGNS'] = current_budgets['CAMPAIGNS'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
+                current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
                 st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
@@ -938,7 +938,7 @@ elif app_mode == 'Budget set up':
                 #             default=False,
                 #         )
                 #     },
-                #     disabled=["CLIENT", "BUDGET", "BUDGET_AMOUNT", "CURRENCY", "SINCE_DATE", "UNTIL_DATE", "CAMPAIGNS"],
+                #     disabled=["CLIENT", "BUDGET", "BUDGET_AMOUNT", "CURRENCY", "SINCE_DATE", "UNTIL_DATE", "campaigns"],
                 #     hide_index=True,
                 # )
                 
