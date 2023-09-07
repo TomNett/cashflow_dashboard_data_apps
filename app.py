@@ -562,7 +562,7 @@ elif app_mode == 'Spend':
         ##################################################
         #--- Data for metrics - current month ---#
         ##################################################
-        df_current_month = df[df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name)) & (
+        df_current_month = df[(df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
             df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year)))]
         spend_current_month = round(
                     np.sum(df_current_month["spent_amount"]), 2)
