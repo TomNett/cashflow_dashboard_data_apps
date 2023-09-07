@@ -819,8 +819,8 @@ elif app_mode == 'Budget set up':
 
         # Container for budget df
         # Define column names for the empty dataframe
-        columns = ["Client", "Budget", "Budget amount",
-                   "Currency", "Since date", "Until date", "Campaigns"]
+        columns = ["client", "budget", "budget_amount",
+                   "currency", "since_date", "until_date", "campaigns"]
         columns = np.array(columns, dtype=str)
         
 
@@ -836,27 +836,27 @@ elif app_mode == 'Budget set up':
         # Create a selectbox for each column in the current row
         for col in columns:
             # Get unique values from the corresponding column in the resource_data dataframe
-            if col == "Client":
+            if col == "client":
                 session_state.row[col] = col11.text_input(
                     col, '', placeholder='Enter a client name', key=col)
 
-            elif col == "Budget":
+            elif col == "budget":
                 session_state.row[col] = col11.text_input(
                     col, '', placeholder='Enter a budget name', key=col)
 
-            elif col == "Budget amount":
+            elif col == "budget_amount":
                 session_state.row[col] = col11.number_input(
                     col, value=1000)
-            elif col == "Currency":
+            elif col == "currency":
                 session_state.row[col] = col11.selectbox(
                     col, currency_distinct, index=0, key='currency_budget')
-            elif col == "Since date":
+            elif col == "since_date":
                 session_state.row[col] = col11.date_input("Select a start date for budget:",
                                                           datetime.date(current_year, current_month-1, 1), key="since_date_budget")
-            elif col == "Until date":
+            elif col == "until_date":
                 session_state.row[col] = col11.date_input("Select a start date for budget:",
                                                           datetime.date(current_year, current_month, current_day), key="until_date_budget")
-            elif col == "Campaigns":  # TODO controll, that cahrts don't show expenses for the ads before the period !
+            elif col == "campaigns":  # TODO controll, that cahrts don't show expenses for the ads before the period !
                 try:
 
                     with col11:
