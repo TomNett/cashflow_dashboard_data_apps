@@ -138,6 +138,7 @@ df["end_date"] = pd.to_datetime(df["end_date"]).dt.date
 df["impressions"] = pd.to_numeric(df["impressions"])
 df["link_clicks"] = pd.to_numeric(df["link_clicks"])
 df['start_date'] = pd.to_datetime(df['start_date'])
+df = df.dropna(subset=['start_date'])
 df['campaign_name'] = df.apply(
     lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
 df["month_name"] = df.start_date.dt.strftime("%B")
