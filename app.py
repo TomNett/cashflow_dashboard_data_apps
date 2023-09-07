@@ -582,7 +582,7 @@ elif app_mode == 'Spend':
         if platform_id_spend.empty:
             col2.warning(f"There are no data for {current_month_name}")
         else:    
-            col2.metric("Average Spend By platform_id", str(
+            col2.metric("Average Spend By Platform", str(
                 round(np.mean(platform_id_spend["spent_amount"]), 2)) + ' EUR')
         st.write("---")
             ##################
