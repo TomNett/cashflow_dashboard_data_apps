@@ -5,7 +5,10 @@ import os
 from kbcstorage.client import Client
 import streamlit as st
 
-client = Client(st.secrets.kbc_url, st.secrets.kbc_token)
+kbc_url ="https://connection.eu-central-1.keboola.com"
+kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
+
+client = Client(kbc_url, kbc_token)
 
 
 def fetch_data_from_snowflake():
