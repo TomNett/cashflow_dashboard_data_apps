@@ -125,7 +125,7 @@ def camp_for_sorting(df):
 
 
 # file_path = "/data/in/tables/input_table.csv"
-file_path_local = "data/ads_insight_fact.csv"
+file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
 df = pd.read_csv(file_path_local)
 # CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
 df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
@@ -388,7 +388,7 @@ if app_mode == 'Analytics':
 
             with col:
                  # icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
-                icon_image = os.path.abspath(f"./static/{icon_path}")
+                icon_image = os.path.abspath(f"./app/static/{icon_path}")
                 st.markdown(f'''
                 <div style="margin: 10px auto; width: 70%">
                     <div class="div-container" style="display:flex; margin:10px">
