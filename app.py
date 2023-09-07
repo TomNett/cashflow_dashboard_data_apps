@@ -125,8 +125,9 @@ def camp_for_sorting(df):
 
 
 # file_path = "/data/in/tables/input_table.csv"
+file_path = "/data/in/tables/ads_insight_fact.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
-df = pd.read_csv(file_path_local)
+df = pd.read_csv(file_path)
 # CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
 df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
 df["start_date"] = pd.to_datetime(df["start_date"]).dt.date
