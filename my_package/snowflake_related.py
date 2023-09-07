@@ -7,7 +7,7 @@ import streamlit as st
 client = Client(st.secrets.kbc_url, st.secrets.kbc_token)
 
 def fetch_data_from_snowflake():
-    file_path = "/data/in/tables/campaign_budget.csv.csv"
+    file_path = "/data/in/tables/campaign_budget.csv"
     
     df = pd.read_csv(file_path)
     df['CAMPAIGNS'] = [campaign.strip() for campaign in df['CAMPAIGNS'].split(',')]
