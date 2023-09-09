@@ -926,7 +926,7 @@ elif app_mode == 'Budget set up':
                     #     print('Hi')
                 st.header("Budgets and their limits")                
                 current_budgets = session_state.df 
-                current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
+                #current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
                 st.write(current_budgets)
