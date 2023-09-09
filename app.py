@@ -122,29 +122,31 @@ def camp_for_sorting(df):
     campaigns_for_sorting = list(set(campaigns_for_sorting))
     return campaigns_for_sorting
 
-
-
 # file_path = "/data/in/tables/input_table.csv"
 file_path = "/data/in/tables/ads_insight_fact.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
-df = pd.read_csv(file_path)
-
 data_from_snowflake = fetch_data_from_snowflake() 
+@st.cache_data
+def fetch_and_prepare_data(path):
+    df = pd.read_csv(path)        
+    # CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
+    df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
+    df["start_date"] = pd.to_datetime(df["start_date"]).dt.date
+    df["modified_date"] = pd.to_datetime(df["modified_date"]).dt.date
+    df["end_date"] = pd.to_datetime(df["end_date"]).dt.date
 
-# CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
-df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
-df["start_date"] = pd.to_datetime(df["start_date"]).dt.date
-df["modified_date"] = pd.to_datetime(df["modified_date"]).dt.date
-df["end_date"] = pd.to_datetime(df["end_date"]).dt.date
 
+    df["impressions"] = pd.to_numeric(df["impressions"])
+    df["link_clicks"] = pd.to_numeric(df["link_clicks"])
+    df['start_date'] = pd.to_datetime(df['start_date'])
+    df = df.dropna(subset=['start_date'])
+    df['campaign_name'] = df.apply(
+        lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
+    df["month_name"] = df.start_date.dt.strftime("%B")
+    
+    return df
 
-df["impressions"] = pd.to_numeric(df["impressions"])
-df["link_clicks"] = pd.to_numeric(df["link_clicks"])
-df['start_date'] = pd.to_datetime(df['start_date'])
-df = df.dropna(subset=['start_date'])
-df['campaign_name'] = df.apply(
-    lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
-df["month_name"] = df.start_date.dt.strftime("%B")
+df = fetch_and_prepare_data(file_path)
 
 # app_mode = st.sidebar.selectbox(
 #     'Select Page', ['Expenses', 'Analytics', 'Campaigns'])  # two pages
