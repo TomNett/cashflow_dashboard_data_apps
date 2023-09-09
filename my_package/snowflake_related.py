@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from kbcstorage.client import Client
 import streamlit as st
+import types
 
 
 
@@ -16,6 +17,8 @@ def fetch_data_from_snowflake():
     for str in df['campaigns']:
         changed_column.append(campaign.strip() for campaign in str.split(','))
     df['campaigns'] = changed_column
+    df['campaigns'] = df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+    
     # Process the Campaigns column
     #df['campaigns'] = df['campaigns'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
     return df

@@ -926,7 +926,7 @@ elif app_mode == 'Budget set up':
                     #     print('Hi')
                 st.header("Budgets and their limits")                
                 current_budgets = pd.DataFrame(session_state.df)
-                current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+                
 
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
@@ -1055,7 +1055,7 @@ elif app_mode == 'Budgets':
                                 {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
             platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
                         {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
-            data_from_snowflake['Campaigns'] = data_from_snowflake['Campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+            
             mapping = data_from_snowflake.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
 
             
