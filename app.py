@@ -124,7 +124,7 @@ def camp_for_sorting(df):
     return campaigns_for_sorting
 
 # file_path = "/data/in/tables/input_table.csv"
-file_path = "/data/in/tables/ads_insight_fact.csv"
+file_path = "/data/in/tables/ads_insight_fact_2.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
 data_from_snowflake = fetch_data_from_snowflake() 
 @st.cache_data
