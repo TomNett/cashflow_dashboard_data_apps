@@ -926,10 +926,12 @@ elif app_mode == 'Budget set up':
                     #     print('Hi')
                 st.header("Budgets and their limits")                
                 current_budgets = pd.DataFrame(session_state.df)
+                current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
-                st.write(current_budgets)
+                st.table(current_budgets)
                 #st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
                 
                 
