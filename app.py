@@ -128,6 +128,9 @@ def camp_for_sorting(df):
 file_path = "/data/in/tables/ads_insight_fact.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
 df = pd.read_csv(file_path)
+
+data_from_snowflake = fetch_data_from_snowflake() 
+
 # CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
 df["created_date"] = pd.to_datetime(df["created_date"]).dt.date
 df["start_date"] = pd.to_datetime(df["start_date"]).dt.date
@@ -178,8 +181,7 @@ dates_2023 = sorted([date for date in dates if date.year == 2023])
 current_index = dates_2023.index(datetime.datetime(2023, 8, 1))  # 2023-August
 
 # Reorder the 2023 list
-ordered_dates_2023 = dates_2023[:current_index +
-                                1] + dates_2023[current_index + 1:]
+ordered_dates_2023 = dates_2023[:current_index + 1] + dates_2023[current_index + 1:]
 
 # Concatenate the lists
 ordered_dates = dates_2022 + ordered_dates_2023
@@ -241,7 +243,7 @@ if app_mode == 'Analytics':
             
         with st.container():
                 #--- Data from snowflake for filters ---#        
-            data_from_snowflake = fetch_data_from_snowflake()          
+                
             data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
             data_from_snowflake.columns = data_from_snowflake.columns.str.title()
             data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
@@ -591,7 +593,7 @@ elif app_mode == 'Spend':
             
         with st.container():
                 #--- Data from snowflake for filters ---#        
-            data_from_snowflake = fetch_data_from_snowflake()          
+              
             data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
             data_from_snowflake.columns = data_from_snowflake.columns.str.title()
             data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
@@ -900,6 +902,7 @@ elif app_mode == 'Budget set up':
                         session_state.df.loc[len(
                             session_state.df)] = session_state.row
                         session_state.row = pd.Series(index=columns)
+                        session_state.df = fetch_data_from_snowflake()
                     
                     st.write("---")
                     if row_num ==0 :
@@ -921,7 +924,7 @@ elif app_mode == 'Budget set up':
                     #     # TODO
                     #     print('Hi')
                 st.header("Budgets and their limits")                
-                current_budgets = fetch_data_from_snowflake()
+                current_budgets = session_state.df 
                 current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
