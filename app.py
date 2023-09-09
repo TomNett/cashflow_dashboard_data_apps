@@ -11,7 +11,7 @@ import warnings
 from streamlit_option_menu import option_menu
 import calendar
 import pandas as pd
-import numpy as np
+import numpy as np 
 import os
 import datetime
 import plotly.express as px
@@ -22,6 +22,7 @@ import plotly.graph_objects as go
 from urllib.error import URLError
 from plotly.subplots import make_subplots
 import base64
+import types
 # import arrow
 import snowflake.connector
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -901,12 +902,13 @@ elif app_mode == 'Budget set up':
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
                         insert_rows_to_snowflake(session_state.row)
                         
-                        session_state.df.loc[len(
-                            session_state.df)] = session_state.row
-                        session_state.row = pd.Series(index=columns)
+                        
                         session_state.df = fetch_data_from_snowflake()
                     
                     st.write("---")
+                    # session_state.df.loc[len(
+                    #         session_state.df)] = session_state.row
+                    # session_state.row = pd.Series(index=columns)
                     if row_num ==0 :
                         index_to_delete = st.number_input(
                                 'Budget ID', value=0,min_value=0, max_value = row_num)
@@ -918,9 +920,6 @@ elif app_mode == 'Budget set up':
                         delete_row_from_snowflake_by_row_id(index_to_delete)
                         data_df = pd.DataFrame(fetch_data_from_snowflake())
 
-                        
-
-                        
                     # st.error('Function does not work right now')
                     # if st.button("Change Row", key='rowchange', disabled=True):
                     #     # TODO
@@ -930,7 +929,8 @@ elif app_mode == 'Budget set up':
                 current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
-                st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
+                st.write(current_budgets)
+                #st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
                 
                 
 
@@ -1053,8 +1053,10 @@ elif app_mode == 'Budgets':
                                 {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
             platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
                         {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
-
+            data_from_snowflake['Campaigns'] = data_from_snowflake['Campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
             mapping = data_from_snowflake.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
+
+            
             merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
             total_spent_per_client = merged.groupby('Client')['spent_amount'].sum().reset_index()
             final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
