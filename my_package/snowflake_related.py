@@ -24,7 +24,7 @@ def fetch_data_from_snowflake():
 def insert_rows_to_snowflake(row):
     kbc_url ="https://connection.eu-central-1.keboola.com"
     kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
-    client = Client(kbc_url, kbc_token)
+    client_kbc = Client(kbc_url, kbc_token)
      # Extract data from Series
     src_id = row['client'] + "-" + row['budget']
     client = row['client']
@@ -49,7 +49,7 @@ def insert_rows_to_snowflake(row):
     }
     results = pd.DataFrame(data_dict)
     results.to_csv('./results.csv.gz', index=False, compression='gzip')
-    client.tables.load(table_id='out.c-Marketing_cash_flow.campaign_budget', file_path='./results.csv.gz', is_incremental=True)
+    client_kbc.tables.load(table_id='out.c-Marketing_cash_flow.campaign_budget', file_path='./results.csv.gz', is_incremental=True)
     
     print("Success")
  
