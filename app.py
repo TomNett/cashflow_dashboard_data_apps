@@ -1341,15 +1341,15 @@ elif app_mode == 'Budgets':
                             for campaign in row['Campaigns']:
                                 filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
 
-                                if not filtered.empty:
-                                    spent = filtered.iloc[0]
+                                if  filtered.empty:
+                                    spent = None 
                                 else:
-                                    spent = None  # or some default value or handling you'd like                            
+                                    spent = filtered.iloc[0] # or some default value or handling you'd like                            
+                                    if campaign in platform_spendings:
+                                        platform_spendings[campaign] += spent
+                                    else:
+                                        platform_spendings[campaign] = spent
                                 
-                                if campaign in platform_spendings:
-                                    platform_spendings[campaign] += spent
-                                else:
-                                    platform_spendings[campaign] = spent
                         
                         labels = list(platform_spendings.keys())
                         values = list(platform_spendings.values())
