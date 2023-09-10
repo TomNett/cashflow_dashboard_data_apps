@@ -892,7 +892,7 @@ elif app_mode == 'Budget set up':
                     st.error()
                 col1, col2 = st.columns(2)
                 # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
-                fetched_df = get_dataframe()
+                fetched_df = st.session_state.df
                 row_num = fetched_df.shape[0]
                 with col12:
                     st.subheader("Entered data preview ")
@@ -916,7 +916,7 @@ elif app_mode == 'Budget set up':
                     st.warning(""" Specify a budget you want to ***delete*** or ***change*** """)
                     if st.button("Delete Row", key="deleterow", disabled=False):
                         delete_row_from_snowflake_by_row_id(index_to_delete)
-                        data_df = pd.DataFrame(get_dataframe())
+                        
 
                     # st.error('Function does not work right now')
                     # if st.button("Change Row", key='rowchange', disabled=True):
@@ -997,7 +997,7 @@ elif app_mode == 'Budgets':
         )
 
         # Data from snowflake
-        data_from_snowflake = get_dataframe()
+        data_from_snowflake = st.session_state.df
         data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
         data_from_snowflake.columns = data_from_snowflake.columns.str.title()
         data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
