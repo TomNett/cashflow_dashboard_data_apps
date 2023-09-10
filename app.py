@@ -256,7 +256,7 @@ if app_mode == 'Analytics':
             
         with st.container():
                 #--- Data from snowflake for filters ---#        
-                
+            data_from_snowflake = st.session_state.df    
             data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
             data_from_snowflake.columns = data_from_snowflake.columns.str.title()
             data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
