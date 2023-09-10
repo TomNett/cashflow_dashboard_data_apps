@@ -42,6 +42,12 @@ def get_dataframe():
         print("The file does not exist")
     os.rename(table_detail['name'], 'data.csv')
     df = pd.read_csv('data.csv')
+    changed_column = []
+    df['campaigns'] = df['campaigns'].apply(lambda x: str(x) if isinstance(x, types.GeneratorType) else x)
+    for str in df['campaigns']:
+        changed_column.append(campaign.strip() for campaign in str.split(','))
+    df['campaigns'] = changed_column
+    df['campaigns'] = df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     return df
 
 
