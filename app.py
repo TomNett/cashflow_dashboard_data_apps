@@ -32,7 +32,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 from my_package.html import html_code, html_footer, title
 from my_package.style import apply_css
 from my_package.style import css_style
-from my_package.snowflake_related import insert_rows_to_snowflake, fetch_data_from_snowflake, delete_row_from_snowflake_by_row_id
+from my_package.snowflake_related import insert_rows_to_snowflake, get_dataframe, delete_row_from_snowflake_by_row_id
 
 
 # Layout settings ---------------
@@ -109,7 +109,7 @@ def last_day_month(selected_year_month):
 # --- Function create a list of distinct campaigns which are not related to a specific budget --- #
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
-    data_from_snowflake = fetch_data_from_snowflake()
+    data_from_snowflake = get_dataframe()
     for l in data_from_snowflake["campaigns"]:
         for c in l:
             campaigns_from_snowflake.append(c)
@@ -126,7 +126,7 @@ def camp_for_sorting(df):
 # file_path = "/data/in/tables/input_table.csv"
 file_path = "/data/in/tables/ads_insight_fact_2.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
-data_from_snowflake = fetch_data_from_snowflake() 
+data_from_snowflake = get_dataframe() 
 @st.cache_data
 def fetch_and_prepare_data(path):
     df = pd.read_csv(path)        
@@ -835,7 +835,7 @@ elif app_mode == 'Budget set up':
 
         if "df" not in session_state:
             # Assign the initial data to the session state variable
-            st.session_state.df = fetch_data_from_snowflake()
+            st.session_state.df = get_dataframe()
             session_state.row = pd.Series(index=columns)
 
         # Create a selectbox for each column in the current row
@@ -892,7 +892,7 @@ elif app_mode == 'Budget set up':
                     st.error()
                 col1, col2 = st.columns(2)
                 # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
-                fetched_df = fetch_data_from_snowflake()
+                fetched_df = get_dataframe()
                 row_num = fetched_df.shape[0]
                 with col12:
                     st.subheader("Entered data preview ")
@@ -901,7 +901,7 @@ elif app_mode == 'Budget set up':
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
                         insert_rows_to_snowflake(session_state.row)
-                        st.session_state.df = fetch_data_from_snowflake()
+                        st.session_state.df = get_dataframe()
                     
                     st.write("---")
                     # session_state.df.loc[len(
@@ -916,7 +916,7 @@ elif app_mode == 'Budget set up':
                     st.warning(""" Specify a budget you want to ***delete*** or ***change*** """)
                     if st.button("Delete Row", key="deleterow", disabled=False):
                         delete_row_from_snowflake_by_row_id(index_to_delete)
-                        data_df = pd.DataFrame(fetch_data_from_snowflake())
+                        data_df = pd.DataFrame(get_dataframe())
 
                     # st.error('Function does not work right now')
                     # if st.button("Change Row", key='rowchange', disabled=True):
@@ -997,7 +997,7 @@ elif app_mode == 'Budgets':
         )
 
         # Data from snowflake
-        data_from_snowflake = fetch_data_from_snowflake()
+        data_from_snowflake = get_dataframe()
         data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
         data_from_snowflake.columns = data_from_snowflake.columns.str.title()
         data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])

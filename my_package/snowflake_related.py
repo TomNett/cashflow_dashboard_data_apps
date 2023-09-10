@@ -5,6 +5,7 @@ import os
 from kbcstorage.client import Client
 import streamlit as st
 import types
+import csv
 
 
 
@@ -21,6 +22,26 @@ def fetch_data_from_snowflake():
     
     # Process the Campaigns column
     #df['campaigns'] = df['campaigns'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
+    return df
+
+def get_dataframe():
+    kbc_url ="https://connection.eu-central-1.keboola.com"
+    kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
+    client = Client(kbc_url, kbc_token)
+
+    table_detail = client.tables.detail('out.c-Marketing_cash_flow.campaign_budget')
+
+    client.tables.export_to_file(table_id = 'out.c-Marketing_cash_flow.campaign_budget', path_name='')
+    list = client.tables.list()
+    with open('./' + table_detail['name'], mode='rt', encoding='utf-8') as in_file:
+        lazy_lines = (line.replace('\0', '') for line in in_file)
+        reader = csv.reader(lazy_lines, lineterminator='\n')
+    if os.path.exists('data.csv'):
+        os.remove('data.csv')
+    else:
+        print("The file does not exist")
+    os.rename(table_detail['name'], 'data.csv')
+    df = pd.read_csv('data.csv')
     return df
 
 
