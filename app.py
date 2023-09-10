@@ -835,7 +835,7 @@ elif app_mode == 'Budget set up':
 
         if "df" not in session_state:
             # Assign the initial data to the session state variable
-            session_state.df = fetch_data_from_snowflake()
+            st.session_state.df = fetch_data_from_snowflake()
             session_state.row = pd.Series(index=columns)
 
         # Create a selectbox for each column in the current row
@@ -901,8 +901,6 @@ elif app_mode == 'Budget set up':
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
                         insert_rows_to_snowflake(session_state.row)
-                        
-                        
                         st.session_state.df = fetch_data_from_snowflake()
                     
                     st.write("---")
@@ -925,13 +923,13 @@ elif app_mode == 'Budget set up':
                     #     # TODO
                     #     print('Hi')
                 st.header("Budgets and their limits")                
-                current_budgets = pd.DataFrame(st.session_state.df)
+                st.table(st.session_state.df)
                 
 
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
 
                 # Convert entire dataframe to HTML and use st.write to display
-                st.table(current_budgets)
+                
                 #st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)
                 
                 
