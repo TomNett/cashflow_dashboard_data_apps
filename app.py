@@ -903,7 +903,7 @@ elif app_mode == 'Budget set up':
                         insert_rows_to_snowflake(session_state.row)
                         
                         
-                        session_state.df = fetch_data_from_snowflake()
+                        st.session_state.df = fetch_data_from_snowflake()
                     
                     st.write("---")
                     # session_state.df.loc[len(
@@ -925,7 +925,7 @@ elif app_mode == 'Budget set up':
                     #     # TODO
                     #     print('Hi')
                 st.header("Budgets and their limits")                
-                current_budgets = pd.DataFrame(session_state.df)
+                current_budgets = pd.DataFrame(st.session_state.df)
                 
 
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
