@@ -1022,7 +1022,7 @@ elif app_mode == 'Budgets':
             st.header("Filters: ")
             # Create two columns for filter controls
             #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
-            filtered_clients= data_from_snowflake
+            filtered_clients= st.session_state.df
             
             with st.form("entry_form_budget_filter", clear_on_submit=False):
                 
@@ -1035,8 +1035,8 @@ elif app_mode == 'Budgets':
                 apply_css()
                 submitted = st.form_submit_button("Filter data",use_container_width = True)
                 if submitted:
-                    data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
-                    filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["clientunique"])]
+                    filtered_clients = filtered_clients[filtered_clients['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
+                    filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["clientunique"])]
                     
 
             col1, col2 = st.columns((2, 1), gap="large")
@@ -1059,7 +1059,7 @@ elif app_mode == 'Budgets':
             platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
                         {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
             
-            mapping = data_from_snowflake.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
+            mapping = st.session_state.df.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
 
             
             merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
