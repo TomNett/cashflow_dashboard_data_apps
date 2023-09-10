@@ -126,6 +126,16 @@ def camp_for_sorting(df):
 # file_path = "/data/in/tables/input_table.csv"
 file_path = "/data/in/tables/ads_insight_fact_2.csv"
 file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
+session_state = st.session_state
+
+columns = ["client", "budget", "budget_amount",
+                   "currency", "since_date", "until_date", "campaigns"]
+columns = np.array(columns, dtype=str)
+
+if "df" not in session_state:
+        # Assign the initial data to the session state variable
+        st.session_state.df = get_dataframe()
+        session_state.row = pd.Series(index=columns)
 data_from_snowflake = get_dataframe() 
 @st.cache_data
 def fetch_and_prepare_data(path):
@@ -824,19 +834,14 @@ elif app_mode == 'Budget set up':
 
         # Container for budget df
         # Define column names for the empty dataframe
-        columns = ["client", "budget", "budget_amount",
-                   "currency", "since_date", "until_date", "campaigns"]
-        columns = np.array(columns, dtype=str)
+        
         
 
         # Create an empty session state variable
-        session_state = st.session_state
+        
         # Check if the session state variable is already defined
 
-        if "df" not in session_state:
-            # Assign the initial data to the session state variable
-            st.session_state.df = get_dataframe()
-            session_state.row = pd.Series(index=columns)
+        
 
         # Create a selectbox for each column in the current row
         for col in columns:
