@@ -31,7 +31,7 @@ from my_package.style import css_style
 from my_package.snowflake_related import insert_rows_to_snowflake, get_dataframe, delete_row_from_snowflake_by_row_id
 
 kbc_url = st.secrets["kbc_url"]
-kbc_token = st.secrets["kbc_token"]
+kec_storage_token  = st.secrets["kec_storage_token "]
 
 # Layout settings ---------------
 page_title = "Ad Expenses Tracker"
@@ -107,8 +107,8 @@ def last_day_month(selected_year_month):
 # --- Function create a list of distinct campaigns which are not related to a specific budget --- #
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
-    data_from_snowflake = get_dataframe()
-    data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+    data_from_snowflake = budget_table_fetch()
+    #data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     for l in data_from_snowflake["campaigns"]:
         for c in l:
             campaigns_from_snowflake.append(c)
@@ -131,14 +131,7 @@ columns = ["client", "budget", "budget_amount",
                    "currency", "since_date", "until_date", "campaigns"]
 columns = np.array(columns, dtype=str)
 
-if "df" not in session_state:
-        # Assign the initial data to the session state variable
-        st.session_state.df = get_dataframe()
-        st.session_state.df["campaigns"] = st.session_state.df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
-        session_state.row = pd.Series(index=columns)
-data_from_snowflake = get_dataframe() 
-data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
-@st.cache_data
+@st.cache_data(ttl=100)
 def fetch_and_prepare_data(path):
     df = pd.read_csv(path)        
     # CREATED_DATE	start_date	MODIFIED_DATE	END_DATE
@@ -157,8 +150,24 @@ def fetch_and_prepare_data(path):
     df["month_name"] = df.start_date.dt.strftime("%B")
     
     return df
+    
+def budget_table_fetch():
+    data = get_dataframe(kec_storage_token, kbc_url)
+    data['campaigns'] = data['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+    return data 
 
-df = fetch_and_prepare_data(file_path)
+
+
+if "df" not in session_state:
+        # Assign the initial data to the session state variable
+        st.session_state.df = budget_table_fetch()
+        #st.session_state.df["campaigns"] = st.session_state.df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+        session_state.row = pd.Series(index=columns)
+data_from_snowflake = budget_table_fetch()
+#data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+
+
+df = fetch_and_prepare_data(file_path_local)
 
 # app_mode = st.sidebar.selectbox(
 #     'Select Page', ['Expenses', 'Analytics', 'Campaigns'])  # two pages
@@ -906,9 +915,9 @@ elif app_mode == 'Budget set up':
                     
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
-                        insert_rows_to_snowflake(session_state.row)
-                        st.session_state.df = get_dataframe()
-                        st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
+                        insert_rows_to_snowflake(session_state.row, kec_storage_token, kbc_url)
+                        st.session_state.df = budget_table_fetch()
+                        #st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
                     st.write("---")
                     # session_state.df.loc[len(
@@ -1032,13 +1041,13 @@ elif app_mode == 'Budgets':
                 col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
                 col2f.multiselect('Select a client',
-                                                    client_list, default=None, placeholder="Client", key="selected_client_spend")
+                                                    client_list, default=None, placeholder="Client", key="selected_client_spend_tab1")
                 
                 apply_css()
                 submitted = st.form_submit_button("Filter data",use_container_width = True)
                 if submitted:
                     filtered_clients = filtered_clients[filtered_clients['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
-                    filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["selected_client_spend"])]
+                    filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["selected_client_spend_tab1"])]
                     
 
             col1, col2 = st.columns((2, 1), gap="large")
@@ -1268,12 +1277,12 @@ elif app_mode == 'Budgets':
                     col1f.selectbox('Select Year and Month:',
                                                     ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
                     col2f.multiselect('Select a client:',
-                                                        client_list, default=None, placeholder="Client", key="selected_client_spend")
+                                                        client_list, default=None, placeholder="Client", key="selected_client_spend_tab2")
                     apply_css()
                     submitted = st.form_submit_button("Filter data",use_container_width = True)
                     if submitted:
                         data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))]
-                        filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["clientunique_tab2"])]
+                        filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend_tab2"])]
                         filtered_df = df[df["start_date"]>= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))] 
                  #################################
                  # --- Budget over time look --- #
