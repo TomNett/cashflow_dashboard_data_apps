@@ -167,7 +167,7 @@ data_from_snowflake = budget_table_fetch()
 #data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
 
 
-df = fetch_and_prepare_data(file_path_local)
+df = fetch_and_prepare_data(file_path)
 
 # app_mode = st.sidebar.selectbox(
 #     'Select Page', ['Expenses', 'Analytics', 'Campaigns'])  # two pages
