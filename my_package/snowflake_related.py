@@ -8,6 +8,58 @@ import types
 import csv
 
 
+def insert_rows_to_table(row):
+    my_cnx = snowflake.connector.connect(
+        user="KEBOOLA_WORKSPACE_611037349",
+        password="35zWKbK2rsWeY7q63zZhy6EEHh4PAawM",
+        account="keboola.eu-central-1",
+        warehouse="KEBOOLA_PROD_SMALL",
+        database="KEBOOLA_3730",
+        schema="WORKSPACE_611037349"
+    )
+    
+    # Extract data from Series
+    src_id = row['client'] + "-" + row['budget']
+    client = row['client']
+    budget = row['budget']
+    amount = row['budget_amount']
+    currency = row['currency']
+    since = row['since_date']
+    until = row['until_date']
+    campaigns_string = ",".join(row['campaigns']).replace("'", "''")  # Convert the list to a comma-separated string and escape any single quotes
+    
+    # SQL statement
+    sql = (f"INSERT INTO KEBOOLA_3730.WORKSPACE_611037349.campaing_budget "
+           f"""("src_id", "client", "budget", "budget_amount", "currency", "since_date", "until_date", "campaigns") """
+           f"SELECT '{src_id}' , '{client}', '{budget}', {amount}, '{currency}', '{since}', '{until}', "
+           f"""SPLIT('{campaigns_string}', ',') AS "campaigns";""")
+
+    # Cursor for Snowflake and Execute the SQL
+    with my_cnx.cursor() as cur:
+        cur.execute(sql)
+
+    my_cnx.close()
+    print("Success")
+
+def fetch_data_from_sf():
+    my_cnx = snowflake.connector.connect(
+    user = "KEBOOLA_WORKSPACE_611037349",
+    password = "35zWKbK2rsWeY7q63zZhy6EEHh4PAawM" ,
+    account = "keboola.eu-central-1",
+    warehouse = "KEBOOLA_PROD_SMALL",
+    database = "KEBOOLA_3730",
+    schema = "WORKSPACE_611037349")
+    with my_cnx as cur:
+        # SQL query to fetch data
+        query = "SELECT * FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget;"
+
+        # Fetch data and transform into DataFrame
+        df = pd.read_sql(query, cur)
+
+        # Process the Campaings column
+        df['campaigns'] = df['campaigns'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
+        cur.close()
+    return df
 
 def fetch_data_from_snowflake():
     file_path = "/data/in/tables/campaign_budget.csv"
@@ -88,6 +140,7 @@ def insert_rows_to_snowflake(row,kbc_url, kbc_token):
 
 
 def delete_row_from_snowflake_by_row_id(index):
+    index_to_del = index + 1
     my_cnx = snowflake.connector.connect(
         user="KEBOOLA_WORKSPACE_611037349",
         password="35zWKbK2rsWeY7q63zZhy6EEHh4PAawM",
@@ -101,13 +154,13 @@ def delete_row_from_snowflake_by_row_id(index):
     # SQL statement to delete a row based on its row_id
     sql = f"""
         DELETE FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget 
-        WHERE (CLIENT, SINCE_DATE) IN 
-            (SELECT CLIENT, SINCE_DATE
+        WHERE ("client", "since_date") IN 
+            (SELECT "client", "since_date"
             FROM 
-                (SELECT CLIENT, SINCE_DATE, 
-                    ROW_NUMBER() OVER (ORDER BY SINCE_DATE) AS rownum
+                (SELECT "client", "since_date", 
+                    ROW_NUMBER() OVER (ORDER BY "since_date") AS rownum
             FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget)
-        WHERE rownum = {index});
+        WHERE rownum = {index_to_del});
         """
         
         # Execute the SQL

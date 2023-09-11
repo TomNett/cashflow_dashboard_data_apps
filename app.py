@@ -28,10 +28,10 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 from my_package.html import html_code, html_footer, title
 from my_package.style import apply_css
 from my_package.style import css_style
-from my_package.snowflake_related import insert_rows_to_snowflake, get_dataframe, delete_row_from_snowflake_by_row_id
+from my_package.snowflake_related import insert_rows_to_table, insert_rows_to_snowflake, get_dataframe, delete_row_from_snowflake_by_row_id, fetch_data_from_sf
 
-kbc_url = st.secrets["kbc_url"]
-kec_storage_token  = st.secrets["kec_storage_token"]
+#kbc_url = st.secrets["kbc_url"]
+#kec_storage_token  = st.secrets["kec_storage_token"]
 
 # Layout settings ---------------
 page_title = "Ad Expenses Tracker"
@@ -152,7 +152,8 @@ def fetch_and_prepare_data(path):
     return df
     
 def budget_table_fetch():
-    data = get_dataframe(kbc_url=kbc_url, kbc_token=kec_storage_token)
+    #data = get_dataframe(kbc_url=kbc_url, kbc_token=kec_storage_token)
+    data = fetch_data_from_sf()
     data['campaigns'] = data['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     return data 
 
@@ -223,7 +224,7 @@ default = {
 
 if app_mode == 'Analytics':
     st.title('Analytical page')
-
+    st.dataframe(pd.read_csv(file_path_local))
     with st.container():
         st.subheader("Filter")
         # Extract unique values for campaigns and domains
@@ -341,6 +342,7 @@ if app_mode == 'Analytics':
         st.write("---")
         st.markdown(title["statistic"], unsafe_allow_html=True)
         st.markdown(css_style, unsafe_allow_html=True)
+        
         col0 = st.columns(3)
         col1, col2, col3 = st.columns(3)   
             # Define metrics and associated icons
@@ -352,6 +354,8 @@ if app_mode == 'Analytics':
         total_reach = filtered_df['reach'].sum()
         average_cpm = filtered_df[['cpm']].mean()
         average_ctr = filtered_df[['ctr']].mean()
+        st.write(filtered_df[['link_clicks','campaign_name']])
+        
         def format_data(data):
             if isinstance(data, np.float64):
                 formatted_data = format_float(data)
@@ -376,7 +380,7 @@ if app_mode == 'Analytics':
         metrics = [
             ("Impressions:", total_impressions),
             ("Clicks:", total_clicks),
-            ("Total spendings:", total_clicks),
+            ("Total spendings:", total_spend),
             ("Click-Through Rate:", average_ctr),                
             ("Reach ",total_reach ),
             ("Average Cost per Mile:",average_cpm ),
@@ -415,6 +419,7 @@ if app_mode == 'Analytics':
 
             with col:
                  # icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
+                #icon_image = os.path.abspath(f"./static/{icon_path}")
                 icon_image = os.path.abspath(f"./app/static/{icon_path}")
                 st.markdown(f'''
                 <div style="margin: 10px auto; width: 70%">
@@ -907,7 +912,7 @@ elif app_mode == 'Budget set up':
                     st.error()
                 col1, col2 = st.columns(2)
                 # Add a button to add a new empty row to the dataframe and clear the values of the selectboxes for the current row
-                fetched_df = st.session_state.df
+                fetched_df = fetch_data_from_sf()
                 row_num = fetched_df.shape[0]
                 with col12:
                     st.subheader("Entered data preview ")
@@ -915,7 +920,8 @@ elif app_mode == 'Budget set up':
                     
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
-                        insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
+                        insert_rows_to_table(session_state.row)
+                        #insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
                         st.session_state.df = budget_table_fetch()
                         #st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
@@ -939,7 +945,7 @@ elif app_mode == 'Budget set up':
                     #     # TODO
                     #     print('Hi')
                 st.header("Budgets and their limits")                
-                st.table(st.session_state.df)
+                st.table(fetch_data_from_sf())
                 
 
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
