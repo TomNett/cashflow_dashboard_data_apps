@@ -31,7 +31,7 @@ from my_package.style import css_style
 from my_package.snowflake_related import insert_rows_to_snowflake, get_dataframe, delete_row_from_snowflake_by_row_id
 
 kbc_url = st.secrets["kbc_url"]
-kec_storage_token  = st.secrets["kec_storage_token "]
+kec_storage_token  = st.secrets["kec_storage_token"]
 
 # Layout settings ---------------
 page_title = "Ad Expenses Tracker"
