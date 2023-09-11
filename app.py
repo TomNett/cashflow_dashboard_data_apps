@@ -123,7 +123,7 @@ def camp_for_sorting(df):
     return campaigns_for_sorting
 
 # file_path = "/data/in/tables/input_table.csv"
-file_path = "/data/in/tables/ads_insight_fact_2.csv"
+file_path = "/data/in/tables/ads_insight_fact.csv"
 file_path_local = os.path.abspath(f"./data/ads_insight_fact_full.csv")
 session_state = st.session_state
 
