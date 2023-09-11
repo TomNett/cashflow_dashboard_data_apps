@@ -110,6 +110,7 @@ def last_day_month(selected_year_month):
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
     data_from_snowflake = get_dataframe()
+    data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     for l in data_from_snowflake["campaigns"]:
         for c in l:
             campaigns_from_snowflake.append(c)
@@ -125,7 +126,7 @@ def camp_for_sorting(df):
 
 # file_path = "/data/in/tables/input_table.csv"
 file_path = "/data/in/tables/ads_insight_fact_2.csv"
-file_path_local = os.path.abspath(f"./app/data/ads_insight_fact.csv")
+file_path_local = os.path.abspath(f"./data/ads_insight_fact_full.csv")
 session_state = st.session_state
 
 columns = ["client", "budget", "budget_amount",
@@ -135,8 +136,10 @@ columns = np.array(columns, dtype=str)
 if "df" not in session_state:
         # Assign the initial data to the session state variable
         st.session_state.df = get_dataframe()
+        st.session_state.df["campaigns"] = st.session_state.df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
         session_state.row = pd.Series(index=columns)
 data_from_snowflake = get_dataframe() 
+data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
 @st.cache_data
 def fetch_and_prepare_data(path):
     df = pd.read_csv(path)        
@@ -907,6 +910,7 @@ elif app_mode == 'Budget set up':
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
                         insert_rows_to_snowflake(session_state.row)
                         st.session_state.df = get_dataframe()
+                        st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
                     st.write("---")
                     # session_state.df.loc[len(
