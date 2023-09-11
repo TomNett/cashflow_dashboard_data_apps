@@ -23,9 +23,9 @@ def fetch_data_from_snowflake():
     #df['campaigns'] = df['campaigns'].apply(lambda x: ast.literal_eval(x.strip()) if isinstance(x, str) else x)
     return df
 
-def get_dataframe(kbc_url,kbc_token):
-    # kbc_url ="https://connection.eu-central-1.keboola.com"
-    # kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
+def get_dataframe():
+    kbc_url ="https://connection.eu-central-1.keboola.com"
+    kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
     client = Client(kbc_url, kbc_token)
 
     table_detail = client.tables.detail('out.c-Marketing_cash_flow.campaign_budget')
@@ -50,9 +50,9 @@ def get_dataframe(kbc_url,kbc_token):
     return df
 
 
-def insert_rows_to_snowflake(row,kbc_url,kbc_token):
-    # kbc_url ="https://connection.eu-central-1.keboola.com"
-    # kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
+def insert_rows_to_snowflake(row):
+    kbc_url ="https://connection.eu-central-1.keboola.com"
+    kbc_token = "3730-490298-T3r89ADkBQIR2g7AnsaclUmEx0XMTztEw98Rm6NH"
     client_kbc = Client(kbc_url, kbc_token)
      # Extract data from Series
     src_id = row['client'] + "-" + row['budget']

@@ -107,7 +107,7 @@ def last_day_month(selected_year_month):
 # --- Function create a list of distinct campaigns which are not related to a specific budget --- #
 def get_ditinct_campaigns_from_snowflake():
     campaigns_from_snowflake = []
-    data_from_snowflake = get_dataframe(kbc_url,kbc_token)
+    data_from_snowflake = get_dataframe()
     data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     for l in data_from_snowflake["campaigns"]:
         for c in l:
@@ -133,10 +133,10 @@ columns = np.array(columns, dtype=str)
 
 if "df" not in session_state:
         # Assign the initial data to the session state variable
-        st.session_state.df = get_dataframe(kbc_url,kbc_token)
+        st.session_state.df = get_dataframe()
         st.session_state.df["campaigns"] = st.session_state.df['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
         session_state.row = pd.Series(index=columns)
-data_from_snowflake = get_dataframe(kbc_url,kbc_token) 
+data_from_snowflake = get_dataframe() 
 data_from_snowflake['campaigns'] = data_from_snowflake['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
 @st.cache_data
 def fetch_and_prepare_data(path):
@@ -906,8 +906,8 @@ elif app_mode == 'Budget set up':
                     
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
-                        insert_rows_to_snowflake(session_state.row,kbc_url,kbc_token)
-                        st.session_state.df = get_dataframe(kbc_url,kbc_token)
+                        insert_rows_to_snowflake(session_state.row)
+                        st.session_state.df = get_dataframe()
                         st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
                     st.write("---")
