@@ -1267,8 +1267,8 @@ elif app_mode == 'Budgets':
                     col1f, col2f = st.columns((1.5, 3))
                     col1f.selectbox('Select Year and Month:',
                                                     ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
-                    col2f.multiselect('Select a source:',
-                                                        client_list, default=client_list, placeholder="Client", key="clientunique_tab2")
+                    col2f.multiselect('Select a client:',
+                                                        client_list, default=None, placeholder="Client", key="selected_client_spend")
                     apply_css()
                     submitted = st.form_submit_button("Filter data",use_container_width = True)
                     if submitted:
