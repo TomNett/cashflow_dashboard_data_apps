@@ -1,10 +1,6 @@
-# TODO Dispaly only campaigns, which are not selected
-# TODO scenare pro kampan  - pridat ?
-# TODO: create a filter which will show only campaigns which are not related to a specific budget 
 # TODO: Zobrazit kampani ktere bezi v vyprsenem budgetu 
 # TODO vsechno v eurech
-# mesice a vypotrebovany budget
-# pak bude analyza konkrenti kampani
+
 
 import streamlit as st
 import warnings
@@ -290,7 +286,7 @@ if app_mode == 'Analytics':
                 col111, col122 = st.columns((1.5, 1.5))
                 with col11:
                         selected_client = st.multiselect('Select a client',
-                                                        client_list, default=client_list, placeholder='Clients',
+                                                        client_list, default=None, placeholder='Clients',
                                                         key = "selected_client_spend"
                                                         )
                 filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
@@ -640,7 +636,7 @@ elif app_mode == 'Spend':
                 col111, col122 = st.columns((1.5, 1.5))
                 with col11:
                         selected_client = st.multiselect('Select a client',
-                                                        client_list, default=client_list, placeholder='Clients',
+                                                        client_list, default=None, placeholder='Clients',
                                                         key = "selected_client_spend"
                                                         )
                 filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
@@ -1034,13 +1030,13 @@ elif app_mode == 'Budgets':
                 col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
                 col2f.multiselect('Select a client',
-                                                    client_list, default=client_list, placeholder="Client", key="clientunique")
+                                                    client_list, default=None, placeholder="Client", key="selected_client_spend")
                 
                 apply_css()
                 submitted = st.form_submit_button("Filter data",use_container_width = True)
                 if submitted:
                     filtered_clients = filtered_clients[filtered_clients['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
-                    filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["clientunique"])]
+                    filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["selected_client_spend"])]
                     
 
             col1, col2 = st.columns((2, 1), gap="large")
