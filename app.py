@@ -152,7 +152,7 @@ def fetch_and_prepare_data(path):
     return df
     
 def budget_table_fetch():
-    data = get_dataframe(kec_storage_token, kbc_url)
+    data = get_dataframe(kbc_url=kbc_url, kbc_token=kec_storage_token)
     data['campaigns'] = data['campaigns'].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
     return data 
 
@@ -915,7 +915,7 @@ elif app_mode == 'Budget set up':
                     
                     
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
-                        insert_rows_to_snowflake(session_state.row, kec_storage_token, kbc_url)
+                        insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
                         st.session_state.df = budget_table_fetch()
                         #st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
