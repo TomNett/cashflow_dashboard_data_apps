@@ -354,7 +354,7 @@ if app_mode == 'Analytics':
         total_reach = filtered_df['reach'].sum()
         average_cpm = filtered_df[['cpm']].mean()
         average_ctr = filtered_df[['ctr']].mean()
-        st.write(filtered_df[['link_clicks','campaign_name']])
+        
         
         def format_data(data):
             if isinstance(data, np.float64):
