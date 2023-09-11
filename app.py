@@ -224,7 +224,7 @@ default = {
 
 if app_mode == 'Analytics':
     st.title('Analytical page')
-    st.dataframe(pd.read_csv(file_path_local))
+    
     with st.container():
         st.subheader("Filter")
         # Extract unique values for campaigns and domains
