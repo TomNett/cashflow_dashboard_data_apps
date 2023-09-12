@@ -312,7 +312,7 @@ if app_mode == 'Analytics':
                 campaigns_for_sorting = camp_for_sorting(filtered_clients) 
 
                 if not selected_client:
-                    fc_col2.warning("Please select a client")
+                    fc_col1.warning("Please select a client")
                 else:
                     if len(st.session_state.selected_client_spend) != 0:
                         filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
@@ -668,7 +668,7 @@ elif app_mode == 'Spend':
                 campaigns_for_sorting = camp_for_sorting(filtered_clients) 
 
                 if not selected_client:
-                    fc_col2.warning("Please select a client")
+                    fc_col1.warning("Please select a client")
                 else:
                     if len(st.session_state.selected_client_spend) != 0:
                         filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
@@ -1039,7 +1039,7 @@ elif app_mode == 'Budgets':
             default_ix_for_filter = months_order.index(current_month_name)
         else:
             # default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
-            default_ix_for_filter = months_order.index(current_month_name) + 12 # 
+            default_ix_for_filter = months_order.index(current_month_name) # 
         
         ##
         
