@@ -223,7 +223,14 @@ default = {
 
 
 if app_mode == 'Analytics':
-    st.title('Analytical page')
+    st.subheader('Select a client and budgets')
+
+    filter_container = st.container()
+    fc_col1, fc_col2 = filter_container.columns(2)
+
+    col1, col2, col3 = st.columns((1.4,1,1), gap="small")
+    col2.title("Analytical page")
+    
     
     with st.container():
         st.subheader("Filter")
@@ -297,21 +304,21 @@ if app_mode == 'Analytics':
                 col11, col12 = st.columns((1.5, 1.5))
                 col111, col122 = st.columns((1.5, 1.5))
                 with col11:
-                        selected_client = st.multiselect('Select a client',
+                        selected_client = fc_col1.multiselect('Select a client',
                                                         client_list, default=None, placeholder='Clients',
-                                                        key = "selected_client_spend"
+                                                        key = "selected_client_spend", max_selections = 1
                                                         )
                 filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
                 campaigns_for_sorting = camp_for_sorting(filtered_clients) 
 
                 if not selected_client:
-                    col11.warning("Please select a client")
+                    fc_col2.warning("Please select a client")
                 else:
                     if len(st.session_state.selected_client_spend) != 0:
                         filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
                         distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
                         budget_list = filtered_clients["Budget"].unique() 
-                        selected_budgets = col12.multiselect('Select a budget',budget_list, default=budget_list, key = "selected_budgets_spend")
+                        selected_budgets = fc_col2.multiselect('Select a budget',budget_list, default=budget_list, key = "selected_budgets_spend")
                     if not selected_budgets:
                         col111.error("Please select budget")
                     else:
@@ -581,6 +588,8 @@ if app_mode == 'Analytics':
 
 
 elif app_mode == 'Spend':
+    filter_container = st.container()
+    fc_col1, fc_col2 = filter_container.columns(2)
     with st.container():
         col1, col2, col3 = st.columns((1.4,1,1), gap="small")
         col2.title("Spend overview")
@@ -651,21 +660,21 @@ elif app_mode == 'Spend':
                 col11, col12 = st.columns((1.5, 1.5))
                 col111, col122 = st.columns((1.5, 1.5))
                 with col11:
-                        selected_client = st.multiselect('Select a client',
+                        selected_client = fc_col1.multiselect('Select a client',
                                                         client_list, default=None, placeholder='Clients',
-                                                        key = "selected_client_spend"
+                                                        key = "selected_client_spend", max_selections = 1
                                                         )
                 filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
                 campaigns_for_sorting = camp_for_sorting(filtered_clients) 
 
                 if not selected_client:
-                    col11.warning("Please select a client")
+                    fc_col2.warning("Please select a client")
                 else:
                     if len(st.session_state.selected_client_spend) != 0:
                         filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
                         distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
                         budget_list = filtered_clients["Budget"].unique() 
-                        selected_budgets = col12.multiselect('Select a budget',budget_list, default=budget_list, key = "selected_budgets_spend")
+                        selected_budgets = fc_col2.multiselect('Select a budget',budget_list, default=budget_list, key = "selected_budgets_spend")
                     if not selected_budgets:
                         col111.error("Please select budget")
                     else:
@@ -1025,10 +1034,12 @@ elif app_mode == 'Budgets':
         data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
         data_from_snowflake['Until_Date'] = pd.to_datetime(data_from_snowflake['Until_Date'])
         client_list = data_from_snowflake["Client"].unique()
+        #default_ix_for_filter = months_order.index(current_month_name) + 12 # 
         if data_from_snowflake['Since_Date'].empty:
             default_ix_for_filter = months_order.index(current_month_name)
         else:
-            default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
+            # default_ix_for_filter = months_order.index(min(data_from_snowflake['Since_Date']).strftime("%B"))
+            default_ix_for_filter = months_order.index(current_month_name) + 12 # 
         
         ##
         
@@ -1047,7 +1058,7 @@ elif app_mode == 'Budgets':
                 col1f.selectbox('Select Year and Month:',
                                                   ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
                 col2f.multiselect('Select a client',
-                                                    client_list, default=None, placeholder="Client", key="selected_client_spend_tab1")
+                                                    client_list, default=None, max_selections=1, placeholder="Client", key="selected_client_spend_tab1")
                 
                 apply_css()
                 submitted = st.form_submit_button("Filter data",use_container_width = True)
@@ -1283,7 +1294,7 @@ elif app_mode == 'Budgets':
                     col1f.selectbox('Select Year and Month:',
                                                     ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
                     col2f.multiselect('Select a client:',
-                                                        client_list, default=None, placeholder="Client", key="selected_client_spend_tab2")
+                                                        client_list, default=None, max_selections=1,  placeholder="Client", key="selected_client_spend_tab2")
                     apply_css()
                     submitted = st.form_submit_button("Filter data",use_container_width = True)
                     if submitted:
