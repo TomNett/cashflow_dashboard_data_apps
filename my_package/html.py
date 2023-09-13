@@ -1,5 +1,25 @@
 import base64
 import os
+#logo_image = os.path.abspath("./app/static/keboola.png")
+logo_image = os.path.abspath("./static/actum.png")
+logo_image_keboola = os.path.abspath("./static/keboola.png")
+
+logo_html = f"""<div style="display: flex; justify-content: center;">
+
+
+ <img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" 
+         style="width: 200px; margin-right: 20px; margin-bottom:50px; 
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                border-radius: 10px;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;">
+              
+              
+</div>
+"""
+
+
+
+
 
 
 html_code = '''
