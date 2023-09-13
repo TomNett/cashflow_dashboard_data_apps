@@ -923,7 +923,7 @@ elif app_mode == 'Budget set up':
                             selected_budgets_to_delete = col2.multiselect('Budgets to delete',budget_list,placeholder='Select a budget to delete', default=budget_list,max_selections=1, key = "selected_budgets_delete")
                             st.session_state.deletekey = client_to_delete[0] + '-' + selected_budgets_to_delete[0]   
                     
-                    st.write(st.session_state.deletekey)
+                    
                     # if row_num ==0 :
                     #     index_to_delete = st.number_input(
                     #             'Budget ID', value=0,min_value=0, max_value = row_num)
