@@ -1,15 +1,9 @@
 import base64
 import os
-<<<<<<< HEAD
-#logo_image = os.path.abspath("./app/static/actum-keboola.png")
-=======
-#logo_image = os.path.abspath("./app/static/keboola.png")
-logo_image = os.path.abspath("./app/static/actum.png")
 
->>>>>>> origin/main
+logo_image = os.path.abspath("./app/static/actum-keboola.png")
 
-logo_image_keboola = os.path.abspath("./static/keboola.png")
-logo_image = os.path.abspath("./static/actum-keboola.png")
+#logo_image = os.path.abspath("./static/actum-keboola.png")
 logo_html = f"""<div style="display: flex; justify-content: center;">
 
 
@@ -17,16 +11,10 @@ logo_html = f"""<div style="display: flex; justify-content: center;">
          style="width: 550px; margin-right: 20px; margin-bottom:50px;margin-up:50px 
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 border-radius: 0.5px;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;">
-              
+                transition: transform 0.3s ease, box-shadow 0.3s ease;">             
               
 </div>
 """
-
-
-
-
-
 
 html_code = '''
 <div style="display: flex; justify-content: center;">
