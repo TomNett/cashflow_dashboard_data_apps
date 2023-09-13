@@ -52,6 +52,19 @@ app_mode =option_menu(
     icons=["cash-coin", "bar-chart-line", "wallet-fill", "pencil-square"],
     orientation="horizontal"
 )
+st.markdown("""
+<style>
+
+
+.menu::after {
+    content: url('data:image/png;base64, YOUR_ENCODED_IMAGE_DATA_HERE');
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    /* Other styles as necessary */
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 def delete_row_from_df(df, index):
@@ -128,7 +141,7 @@ def camp_for_sorting(df):
 
 #file_path = "/data/in/tables/input_table.csv"
 file_path = "/data/in/tables/ads_insight_fact.csv"
-#file_path_local = os.path.abspath(f"./data/ads_insight_fact_full.csv")
+#file_path_local = os.path.abspath(f"./data/ads_insight_fact.csv")
 session_state = st.session_state
 
 columns = ["client", "budget", "budget_amount",
@@ -337,7 +350,7 @@ if app_mode == 'Analytics':
         average_cpm = filtered_df[['cpm']].mean()
         average_ctr = filtered_df[['ctr']].mean()
         
-        
+       
         def format_data(data):
             if isinstance(data, np.float64):
                 formatted_data = format_float(data)
@@ -351,7 +364,7 @@ if app_mode == 'Analytics':
             if value.is_integer():
                 return '{:,.0f}'.format(value).replace(',', ' ')
             else:
-                 formatted_value = '{:,.1f}'.format(value).replace(',', ' ')
+                 formatted_value = '{:,.2f}'.format(value).replace(',', ' ')
                  return formatted_value
 
 
@@ -401,9 +414,9 @@ if app_mode == 'Analytics':
             number_with_percent = f'{number} %' if 'rate:' in metric_label.lower() else number
             
             with col:
-                icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
+                #icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
                 #icon_image = os.path.abspath(f"./static/{icon_path}")
-                #icon_image = os.path.abspath(f"./app/static/{icon_path}")
+                icon_image = os.path.abspath(f"./app/static/{icon_path}")
                 st.markdown(f'''
                 <div style="margin: 10px auto; width: 70%">
                     <div class="div-container" style="display:flex; margin:10px">
@@ -440,7 +453,12 @@ if app_mode == 'Analytics':
             df_sorted.columns = df_sorted.columns.str.title()
             df_sorted = df_sorted.rename(columns={"Cpm": "CPM", "Ctr": "CTR"})
            
-            st.table(df_sorted.head(5))
+            
+            #disp_df = disp_df.rename(columns={"since_date": "since date", "until_date": "until date","budget_amount": "Budget Amount"}) 
+            df_sorted.columns = df_sorted.columns.str.title()
+            df_sorted_for_print = df_sorted.head(5)
+            st.write(df_sorted_for_print.to_html(index=False), unsafe_allow_html=True)
+            
             col1, col2 = st.columns(2)
             # 
 
@@ -813,18 +831,18 @@ elif app_mode == 'Budget set up':
             # Get unique values from the corresponding column in the resource_data dataframe
             if col == "client":
                 session_state.row[col] = col11.text_input(
-                    col, '', placeholder='Enter a client name', key=col)
+                    'Client', '', placeholder='Enter a client name', key=col)
 
             elif col == "budget":
                 session_state.row[col] = col11.text_input(
-                    col, '', placeholder='Enter a budget name', key=col)
+                    'Budget', '', placeholder='Enter a budget name', key=col)
 
             elif col == "budget_amount":
                 session_state.row[col] = col11.number_input(
-                    col, value=1000)
+                    "Budget Amount", value=1000)
             elif col == "currency":
                 session_state.row[col] = col11.selectbox(
-                    col, currency_distinct, index=0, key='currency_budget')
+                    'Currency', currency_distinct, placeholder='Select a currency name',index=0, key='currency_budget')
             elif col == "since_date":
                 session_state.row[col] = col11.date_input("Select a start date for budget:",
                                                           datetime.date(current_year, current_month-1, 1), key="since_date_budget")
@@ -835,7 +853,7 @@ elif app_mode == 'Budget set up':
                 try:
 
                     with col11:
-                        selected_sources = st.multiselect('Select Platform:',
+                        selected_sources = st.multiselect('Platforms',
                                                           distinct_source, default=distinct_source, placeholder="All platform_ids", key="source")
                     if not selected_sources:
                         col11.error("Please select a platform.")
@@ -865,37 +883,106 @@ elif app_mode == 'Budget set up':
                 fetched_df = fetch_data_from_sf()
                 row_num = fetched_df.shape[0]
                 with col12:
-                    st.subheader("Entered data preview ")
-                    st.table(session_state.row)
+                    st.subheader("Entered data preview ")                        
+                    disp_df = session_state.row.to_frame().transpose()
+                    disp_df = disp_df.rename(columns={"since_date": "since date", "until_date": "until date","budget_amount": "Budget Amount"}) 
+                    disp_df.columns = disp_df.columns.str.title()
+                    st.write(disp_df.to_html(index=False), unsafe_allow_html=True)  # Use index=False here
+
+
                     
+                    #st.markdown(session_state.row.style.hide(axis="index").to_html(), unsafe_allow_html=True)
+                    st.write('')
                     
+                   
                     if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
                         insert_rows_to_table(session_state.row)
+                        st.success("Item successfully added!")
                         #insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
-                        st.session_state.df = budget_table_fetch()
+                        st.session_state.df = fetch_data_from_sf()
                         #st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                     
                     st.write("---")
                     # session_state.df.loc[len(
                     #         session_state.df)] = session_state.row
                     # session_state.row = pd.Series(index=columns)
-                    if row_num ==0 :
-                        index_to_delete = st.number_input(
-                                'Budget ID', value=0,min_value=0, max_value = row_num)
+                    st.session_state.deletekey = None
+                    client_list = data_from_snowflake["client"].unique() 
+                    
+                    st.warning(""" If you want to ***delete*** a budget, select the client and budget name  """)
+                    col1, col2 = st.columns(2)
+                    client_to_delete = col1.multiselect('Client',
+                                                    client_list, default=None, max_selections=1, placeholder="Select a client to delete", key="selected_client_delete")
+                    if not client_to_delete:
+                        st.error("Please select a client")
                     else:
-                        index_to_delete = st.number_input(
-                                    'Budget ID', value=0,min_value=0, max_value = row_num-1)
-                    st.warning(""" Specify a budget you want to ***delete*** or ***change*** """)
-                    if st.button("Delete Row", key="deleterow", disabled=False):
-                        delete_row_from_snowflake_by_row_id(index_to_delete)
-                        
+                        if len(st.session_state.selected_client_delete) != 0:
+                            filtered_df = data_from_snowflake[data_from_snowflake["client"].isin(client_to_delete)]
+                            
+                            budget_list = filtered_df["budget"].unique() 
+                            selected_budgets_to_delete = col2.multiselect('Budgets to delete',budget_list,placeholder='Select a budget to delete', default=budget_list,max_selections=1, key = "selected_budgets_delete")
+                            st.session_state.deletekey = client_to_delete[0] + '-' + selected_budgets_to_delete[0]   
+                    
+                    st.write(st.session_state.deletekey)
+                    # if row_num ==0 :
+                    #     index_to_delete = st.number_input(
+                    #             'Budget ID', value=0,min_value=0, max_value = row_num)
+                    # else:
+                    #     index_to_delete = st.number_input(
+                    #                 'Budget ID', value=0,min_value=0, max_value = row_num-1)
+                    
+                    st.markdown("""
+                        <style>
+                            .stButton>button {
+                                background-color: #de2312;
+                                color: white;
+                                padding: 14px 20px;
+                                margin: 8px 0;
+                                border: none;
+                                cursor: pointer;
+                                width: 20%;
+                                font-weight: bold;
+                            }
+                            
+                            .stButton>button:hover {
+                                opacity: 0.8;
+                            }
+                        </style>
+                        """, unsafe_allow_html=True)
+                    delete_warning = st.empty()
+                    confirmed = st.empty()
+                    not_confirmed = st.empty()
+                    if st.session_state.deletekey == None :
+                        if st.button("Delete", key="deleterow", disabled=True):
+                            delete_row_from_snowflake_by_row_id(1)
+                    else:
+                         if confirmed.button("Delete", key="deleterow", disabled=False):
+                            delete_warning.warning("Are you sure you want to delete this budget? This action cannot be undone.")
+                            confirmed_button = confirmed.button("Confirm",use_container_width=True,key = 'confirmedb')
+                            not_confirmed_button= not_confirmed.button("Reject",use_container_width=True,key = 'notconfirmedb')
+                            if confirmed_button:
+                                delete_row_from_snowflake_by_row_id(st.session_state.deletekey)
+                                st.success("Item deleted successfully!")
+                                delete_warning.empty()  # Clears the warning
+                                confirmed.empty()   
+                                not_confirmed.empty()
+                                confirmed_button = st.empty()    # Clears the Confirm button
+                                not_confirmed_button = st.empty()    # Clears the Confirm button
+                                
+                            if not_confirmed.button("Reject",use_container_width=True):#TODO
+                                delete_warning.empty()
+                                not_confirmed.empty()
+                                confirmed.empty()
+                                confirmed_button = st.empty()    # Clears the Confirm button
+                                not_confirmed_button = st.empty()
+                                
 
                     # st.error('Function does not work right now')
                     # if st.button("Change Row", key='rowchange', disabled=True):
                     #     # TODO
                     #     print('Hi')
                 st.header("Budgets and their limits")                
-                st.table(fetch_data_from_sf())
+                st.table(budget_table_fetch())
                 
 
                 #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
@@ -1005,8 +1092,8 @@ elif app_mode == 'Budgets':
         
         # Tabs for visuals
         tab1, tab2 = st.tabs(
-            ["Client overview", "Detailed Budget Examination"])
-        with tab1:
+            ["Detailed Budget Examination", "Client overview"])
+        with tab2:
             
                     
 
@@ -1228,7 +1315,7 @@ elif app_mode == 'Budgets':
 
             # --- TAB 2 FOR BUDGETS --- #
             
-            with tab2:
+            with tab1:
                 st.header("Filters: ")
 
                 
@@ -1281,9 +1368,11 @@ elif app_mode == 'Budgets':
                         ind = ind + 1      
                                 # Plot the stacked area chart
                 fig.update_layout(title='Budget Spent In Time ',
-                    height=500 ,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                    height=500 , 
+                    xaxis = dict(range=[pd.to_datetime('2023-01-01'), consolidated_daily_spend["Date"].max()])  ,# Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
                     yaxis=dict(
                     range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
+                    
                 st.plotly_chart(fig, use_container_width=True)     
                 
                 ##############################################            

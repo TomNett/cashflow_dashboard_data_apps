@@ -139,8 +139,8 @@ def insert_rows_to_snowflake(row,kbc_url, kbc_token):
 
 
 
-def delete_row_from_snowflake_by_row_id(index):
-    index_to_del = index + 1
+def delete_row_from_snowflake_by_row_id(id):
+    
     my_cnx = snowflake.connector.connect(
         user="KEBOOLA_WORKSPACE_611037349",
         password="35zWKbK2rsWeY7q63zZhy6EEHh4PAawM",
@@ -154,14 +154,18 @@ def delete_row_from_snowflake_by_row_id(index):
     # SQL statement to delete a row based on its row_id
     sql = f"""
         DELETE FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget 
-        WHERE ("client", "since_date") IN 
-            (SELECT "client", "since_date"
-            FROM 
-                (SELECT "client", "since_date", 
-                    ROW_NUMBER() OVER (ORDER BY "since_date") AS rownum
-            FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget)
-        WHERE rownum = {index_to_del});
-        """
+        WHERE ("src_id") = '{id}';
+    """
+    # sql = f"""
+    #     DELETE FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget 
+    #     WHERE ("client", "since_date") IN 
+    #         (SELECT "client", "since_date"
+    #         FROM 
+    #             (SELECT "client", "since_date", 
+    #                 ROW_NUMBER() OVER (ORDER BY "since_date") AS rownum
+    #         FROM KEBOOLA_3730.WORKSPACE_611037349.campaing_budget)
+    #     WHERE rownum = {index_to_del});
+    #     """
         
         # Execute the SQL
     with my_cnx.cursor() as cur:
