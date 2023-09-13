@@ -1,8 +1,8 @@
 import base64
 import os
 #logo_image = os.path.abspath("./app/static/keboola.png")
-logo_image = os.path.abspath("./static/actum.png")
-logo_image_keboola = os.path.abspath("./static/keboola.png")
+logo_image = os.path.abspath("./app/static/actum.png")
+
 
 logo_html = f"""<div style="display: flex; justify-content: center;">
 
