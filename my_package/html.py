@@ -1,6 +1,12 @@
 import base64
 import os
+<<<<<<< HEAD
 #logo_image = os.path.abspath("./app/static/actum-keboola.png")
+=======
+#logo_image = os.path.abspath("./app/static/keboola.png")
+logo_image = os.path.abspath("./app/static/actum.png")
+
+>>>>>>> origin/main
 
 logo_image_keboola = os.path.abspath("./static/keboola.png")
 logo_image = os.path.abspath("./static/actum-keboola.png")
