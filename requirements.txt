@@ -4,3 +4,4 @@ snowflake-connector-python
 streamlit_option_menu==0.3.2
 kbcstorage == 0.7.2
 duckdb
+streamlit-authenticator==0.1.3
