@@ -460,7 +460,7 @@ default = {
 
 # --- AUTH PART --- #
 
-with open('config.yaml') as file:
+with open('./app/config.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
 
 authenticator = stauth.Authenticate(
@@ -678,9 +678,9 @@ if st.session_state["authentication_status"]:
                 number_with_percent = f'{number} %' if 'rate:' in metric_label.lower() else number
                 
                 with col:
-                    icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
+                    #icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
                     #icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
-                    #icon_image = os.path.abspath(f"./app/static/{icon_path}") 
+                    icon_image = os.path.abspath(f"./app/static/{icon_path}") 
                     st.markdown(f'''
                     <div style="margin: 10px auto; width: 70%">
                         <div class="div-container" style="display:flex; margin:10px">
