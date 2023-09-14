@@ -459,8 +459,8 @@ default = {
     }
 
 # --- AUTH PART --- #
-
-with open('./app/config.yaml') as file:
+config_path = os.path.abspath(f"/home/appuser/app/config.yaml")
+with open(config_path) as file:
     config = yaml.load(file, Loader=SafeLoader)
 
 authenticator = stauth.Authenticate(
