@@ -398,7 +398,7 @@ def fetch_and_prepare_data(path):
     df['start_date'] = pd.to_datetime(df['start_date'])
     df = df.dropna(subset=['start_date'])
     df['campaign_name'] = df.apply(
-        lambda row: row['platform_id'][:9] + '-' + row['campaign_name'], axis=1)
+        lambda row: str(row['platform_id'][:9]) + '-' + str(row['campaign_name']), axis=1)
     df["month_name"] = df.start_date.dt.strftime("%B")
     
     return df
