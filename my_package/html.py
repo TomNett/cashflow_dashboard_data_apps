@@ -4,11 +4,11 @@ import os
 logo_image = os.path.abspath("./app/static/actum-keboola.png")
 
 #logo_image = os.path.abspath("./static/actum-keboola.png")
-logo_html = f"""<div style="display: flex; justify-content: center;">
+logo_html = f"""<div style="display: flex; justify-content: flex-end;">
 
 
  <img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" 
-         style="width: 550px; margin-right: 20px; margin-bottom:50px;margin-up:50px 
+         style="width: 350px; margin-right: 20px; margin-bottom:50px;margin-up:50px 
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 border-radius: 0.5px;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;">             

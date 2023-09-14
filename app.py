@@ -19,6 +19,8 @@ from urllib.error import URLError
 from plotly.subplots import make_subplots
 import base64
 import types
+import random
+import duckdb
 # import arrow
 import snowflake.connector
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -139,9 +141,242 @@ def camp_for_sorting(df):
     campaigns_for_sorting = list(set(campaigns_for_sorting))
     return campaigns_for_sorting
 
-#file_path = "/data/in/tables/input_table.csv"
+def plot_metric(label, value, prefix="", suffix="", show_graph=False, color_graph=""):
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Indicator(
+            value=value,
+            gauge={"axis": {"visible": False}},
+            number={
+                "prefix": prefix,
+                "suffix": suffix,
+                "font.size": 28,
+            },
+            title={
+                "text": label,
+                "font": {"size": 24},
+            },
+        )
+    )
+
+    if show_graph:
+        fig.add_trace(
+            go.Scatter(
+                y=random.sample(range(0, 101), 30),
+                hoverinfo="skip",
+                fill="tozeroy",
+                fillcolor=color_graph,
+                line={
+                    "color": color_graph,
+                },
+            )
+        )
+
+    fig.update_xaxes(visible=False, fixedrange=True)
+    fig.update_yaxes(visible=False, fixedrange=True)
+    fig.update_layout(
+        # paper_bgcolor="lightgrey",
+        margin=dict(t=30, b=0),
+        showlegend=False,
+        plot_bgcolor="white",
+        height=100,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_bottom_left():
+    platform_data = duckdb.sql(
+        f"""
+        SELECT 
+        start_date, 
+        platform_id as Platform,
+        SUM(spent_amount) AS total_spent_amount
+        FROM 
+            filtered_df
+        WHERE 
+            start_date > '2023-01-01'
+        GROUP BY 
+            start_date, 
+            Platform
+        ORDER BY 
+            start_date, 
+            Platform
+    
+    """
+    ).df()
+    color_map = {
+    "GOOGLE": "red",
+    "TIKTOK": "blue",
+    "META": "green",
+    "LINKEDIN": "orange",
+    "SKLIK": "pink",
+    # Add more platform IDs and colors as needed
+    }
+
+    fig = px.line(
+        platform_data,
+        x="start_date",
+        y="total_spent_amount",
+        color="Platform",
+        color_discrete_map=color_map,  # Use the custom color map
+        markers=True,
+        title="Spends by platform in selected period in 2023",
+    )
+    fig.update_layout(
+        xaxis=dict(
+             title='Date'),
+        yaxis=dict(
+             title='EUR'))
+    fig.update_traces(textposition="top center")
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_bottom_left_cummulative():
+    platform_data = duckdb.sql(
+        f"""
+        SELECT 
+        start_date, 
+        platform_id as Platform,
+        SUM(spent_amount) AS total_spent_amount
+        FROM 
+            filtered_df
+        WHERE 
+            start_date > '2023-01-01'
+        GROUP BY 
+            start_date, 
+            Platform
+        ORDER BY 
+            start_date, 
+            Platform
+    
+    """
+    ).df()
+    color_map = {
+    "GOOGLE": "red",
+    "TIKTOK": "blue",
+    "META": "green",
+    "LINKEDIN": "orange",
+    "SKLIK": "pink",
+    # Add more platform IDs and colors as needed
+    }
+    platform_data['cumulative_spent'] = platform_data.groupby('Platform')['total_spent_amount'].cumsum()
+
+    fig = px.line(
+        platform_data,
+        x="start_date",
+        y="cumulative_spent",
+        color="Platform",
+        color_discrete_map=color_map,  # Use the custom color map
+        
+        title="Cumulative Spends by platform in selected period in 2023",
+    )
+    fig.update_layout(
+        xaxis=dict(
+             title='Date'),
+        yaxis=dict(
+             title='EUR')
+        )
+    fig.update_traces(textposition="top center",fill = 'tozeroy')
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_bottom_right():
+    campaign_data = duckdb.sql(
+        f"""
+        SELECT 
+    start_date, 
+    campaign_name,
+    SUM(spent_amount) AS total_spent_amount
+    FROM 
+        filtered_df
+    WHERE 
+            start_date > '2023-01-01'
+    GROUP BY 
+        start_date, 
+        campaign_name
+    ORDER BY 
+        start_date, 
+        campaign_name
+
+    """
+    ).df()
+
+    unique_campaigns = campaign_data['campaign_name'].unique()
+    # Get multiple color sets
+    colors_set1 = px.colors.qualitative.Plotly
+    colors_set2 = px.colors.qualitative.Dark24
+    colors_set3 = px.colors.qualitative.Set3
+
+    # Combine and slice to get 50 colors
+    combined_colors = colors_set1 + colors_set2 + colors_set3
+    fifty_colors = combined_colors[:50]
+    color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
+
+    fig = px.line(
+        campaign_data,
+        x="start_date",
+        y="total_spent_amount",
+        color="campaign_name",
+        color_discrete_map=color_map,  # Use the custom color map
+        markers=True,
+        title="Spends by campaign in selected period in 2023",
+    )
+    fig.update_traces(textposition="top center")
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_bottom_right_cummulative():
+    campaign_data = duckdb.sql(
+        f"""
+        SELECT 
+        start_date, 
+        campaign_name,
+        SUM(spent_amount) AS total_spent_amount
+        FROM 
+            filtered_df
+        WHERE 
+            start_date > '2023-01-01'
+        GROUP BY 
+            start_date, 
+            campaign_name
+        ORDER BY 
+            start_date, 
+            campaign_name
+    
+    """
+    ).df()
+    
+    unique_campaigns = campaign_data['campaign_name'].unique()
+    # Get multiple color sets
+    colors_set1 = px.colors.qualitative.Plotly
+    colors_set2 = px.colors.qualitative.Dark24
+    colors_set3 = px.colors.qualitative.Set3
+
+    # Combine and slice to get 50 colors
+    combined_colors = colors_set1 + colors_set2 + colors_set3
+    fifty_colors = combined_colors[:50]
+    color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
+
+    campaign_data['cumulative_spent'] = campaign_data.groupby('campaign_name')['total_spent_amount'].cumsum()
+
+    fig = px.line(
+        campaign_data,
+        x="start_date",
+        y="cumulative_spent",
+        color="campaign_name",
+        color_discrete_map=color_map,  # Use the custom color map
+        
+        title="Cumulative Spends by Campaign in selected period in 2023",
+    )
+    fig.update_layout(
+        xaxis=dict(
+             title='Date'),
+        yaxis=dict(
+             title='EUR')
+        )
+    fig.update_traces(textposition="top center",fill = 'tozeroy')    
+    st.plotly_chart(fig, use_container_width=True)
+
+
 file_path = "/data/in/tables/ads_insight_fact.csv"
-#file_path_local = os.path.abspath(f"./data/ads_insight_fact.csv")
+#file_path = os.path.abspath(f"./data/ads_insight_fact.csv") # local path for testing 
 session_state = st.session_state
 
 columns = ["client", "budget", "budget_amount",
@@ -414,9 +649,9 @@ if app_mode == 'Analytics':
             number_with_percent = f'{number} %' if 'rate:' in metric_label.lower() else number
             
             with col:
-                #icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
-                #icon_image = os.path.abspath(f"./static/{icon_path}")
-                icon_image = os.path.abspath(f"./app/static/{icon_path}")
+                icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
+                #icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
+                #icon_image = os.path.abspath(f"./app/static/{icon_path}") 
                 st.markdown(f'''
                 <div style="margin: 10px auto; width: 70%">
                     <div class="div-container" style="display:flex; margin:10px">
@@ -484,53 +719,7 @@ if app_mode == 'Analytics':
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.write(f"The metric '{metric}' is not available in the data.")
-            #with col2:
-                # for metric in selected_metrics:
-                #     if metric in filtered_df.columns:
-                #         fig = px.line(filtered_df, x="start_date", y=metric, color="campaign_name")
-                        
-                #         # Update layout
-                #         fig.update_layout(
-                #             xaxis_title='Date',
-                #             yaxis_title=metric,
-                #         )
-                #         fig.update_yaxes(range=[0, filtered_df[metric].max() + 5])
-                        
-                #         st.plotly_chart(fig, use_container_width=True)
-                #     else:
-                #         st.write(f"The metric '{metric}' is not available in the data.")
-            # # # Display title for the "Campaigns" section
-            # st.markdown(title["impressions"], unsafe_allow_html=True)
-            # fig = px.bar(Campaigns_df, x="start_date",
-            #              y="impressions", color="campaign_name")
-            # # st.bar_chart(data = Campaigns_df, x="start_date", y="impressions",use_container_width=True)
-            # # fig = px.bar(Campaigns_df, x="start_date", y="impressions", color="campaign_name") # , color="source"
-            # fig.update_layout(xaxis_title='Date', yaxis_title='impressions')
-            # # # Display the bar chart
-            # st.plotly_chart(fig, use_container_width=True)
-
-            # # Clicks
-            # st.markdown(title["clicks"], unsafe_allow_html=True)
-            # fig = px.bar(Campaigns_df, x="start_date", y="link_clicks",
-            #              color="campaign_name")  # , color="source"
-            # fig.update_layout(
-            #     xaxis_title='Date',
-            #     yaxis_title='Clicks',
-            # )
-            # # Display the bar chart
-            # st.plotly_chart(fig, use_container_width=True)
-
-            # st.markdown(title["clicktr"], unsafe_allow_html=True)
-            # fig = px.line(Campaigns_df, x="start_date", y="ctr",
-            #               color="campaign_name")  # , color="source"
-
-            # # # Update layout
-            # fig.update_layout(
-            #     xaxis_title='Date',
-            #     yaxis_title='Click-Through Rate %',
-            # )
-            # fig.update_yaxes(range=[0, max_campaign+5])
-            # st.plotly_chart(fig, use_container_width=True)
+            
 
         with tab4:
             st.markdown('Dataset :')
@@ -555,33 +744,15 @@ elif app_mode == 'Spends':
         ##################################################
         #--- Data for metrics - current month ---#
         ##################################################
-        df_current_month = df[(df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
-            df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year)))]
-        spend_current_month = round(
-                    np.sum(df_current_month["spent_amount"]), 2)
+        
         
         with st.container():
             col1, col2, col3 = st.columns((1.4,1,1), gap="small")
             col2.header("Current month overview")
         
-        col1,col2, col3, col4, col5 = st.columns((2.2,1,1,1,1))
+        first_metric,second_metric = st.columns(2)
         
-        if df_current_month.empty:
-            col2.warning(f"There are no data for {current_month_name} or there are no active campaigns")
-        else:
-            col2.metric(f"Total spend in {current_month_name} ", str("{:,}".format(spend_current_month).replace(",", " ")) + ' EUR')
-        # Column 2
-
-        platform_id_spend = df_current_month.groupby(
-            ['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
-
-        # target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')
-        if platform_id_spend.empty:
-            col3.warning(f"There are no data for {current_month_name}")
-        else:    
-            col3.metric("Average Spend By Platform", str("{:,}".format(round(np.mean(platform_id_spend["spent_amount"]), 2)).replace(",", " "))
-                 + ' EUR')
-        st.write("---")
+        
            
         with st.container():
             col1, col2, col3 = st.columns((1.4,1,1), gap="small")
@@ -686,13 +857,13 @@ elif app_mode == 'Spends':
                                         y=[row['month_name']],
                                         orientation='h',
                                         # this will be the individual value now
-                                        text=[row['spent_amount']],
+                                        text=[str(round(row['spent_amount'],2)) + ' EUR'],
                                         textposition='outside',
                                         marker_color=px.colors.qualitative.Plotly[index % len(
                                             px.colors.qualitative.Plotly)]  # cycling through colors
                                     ))
 
-                                fig.update_layout(title='Spend by month',
+                                fig.update_layout(title='Spend By Month',
                                                 xaxis=dict(range=[0, max(
                                                     month_spend["spent_amount"])*1.15], title='Spend in EUR', showgrid=True),
                                                 yaxis_title='Month',
@@ -705,7 +876,7 @@ elif app_mode == 'Spends':
 
                                 col1.plotly_chart(fig, use_container_width=True)
 
-                                # Column 2
+                                #Column 2
 
                                 platform_id_spend = filtered_df.groupby(
                                     ['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
@@ -729,14 +900,15 @@ elif app_mode == 'Spends':
 
                                 fig_spend.update_layout(title='Spend By Platform',
                                                         xaxis=dict(
-                                                            range=[0, max_value_by_platform*1.15], title='EUR'),
-                                                        yaxis_title='',
+                                                            range=[0, max_value_by_platform*1.15], title='Spend in EUR',showgrid=True),
+                                                        yaxis_title='Platforn',
                                                         showlegend=False)
 
                                 # fig_spend.add_shape(type="line",
                                 #                     x0=target_value_platform_id, y0=0, x1=target_value_platform_id, y1=1,
                                 #                     line=dict(color='rgb(64, 224, 208)', width=6),
                                 #                     xref='x', yref='paper')
+                                
 
                                 col2.plotly_chart(fig_spend, use_container_width=True)
                         except URLError as e:
@@ -764,36 +936,79 @@ elif app_mode == 'Spends':
         tab1, tab2 = st.tabs(
             ["Spend By Platform", "Spend By Campaign"])
      
+        df_current_month = filtered_df[(filtered_df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
+        filtered_df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year))) & filtered_df["platform_id"].isin(
+                                    st.session_state.source_spend)]
+        spend_current_month = round(
+                    np.sum(df_current_month["spent_amount"]), 2)
+        if df_current_month.empty:
+            first_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
+        else:
+            with first_metric:
+                plot_metric(
+                f"Total spend in selected period", # : {since_date.strftime('%Y-%m-%d')} to {until_date.strftime('%Y-%m-%d')}
+                spend_current_month,
+                
+                prefix="€",
+                suffix="",
+                show_graph=True,
+                color_graph="rgba(0, 53, 201, 0.2)",
+            )
+            #col1.metric(f"Total spend in {current_month_name} ", str("{:,}".format(spend_current_month).replace(",", " ")) + ' EUR')
+        # Column 2
 
+        platform_id_spend = df_current_month.groupby(
+            ['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
 
-        grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
-                    .agg({'spent_amount': 'sum'}).reset_index()
-        Campaigns_df = grouped.copy()
-        grouped = filtered_df.groupby(['platform_id', 'start_date'])\
-                    .agg({'spent_amount': 'sum'}).reset_index()
-        platform_id_df = grouped.copy()
+        # target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')
+        if platform_id_spend.empty:
+            second_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
+        else:
+            with second_metric:
+                plot_metric(
+                f"Average Spend By Platform in selected period",
+                round(np.mean(platform_id_spend["spent_amount"]), 2),
+                prefix="€",
+                suffix="",
+                show_graph=True,
+                color_graph="rgba(255, 43, 43, 0.2)",
+            )
+
+            
+        st.write("---")
+
+        # grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
+        #             .agg({'spent_amount': 'sum'}).reset_index()
+        # Campaigns_df = grouped.copy()
+        # grouped = filtered_df.groupby(['platform_id', 'start_date'])\
+        #             .agg({'spent_amount': 'sum'}).reset_index()
+        # platform_id_df = grouped.copy()
 
         with tab1:
-                    # , color="source"
-                    fig = px.bar(platform_id_df, x="start_date",
-                                 y="spent_amount", color="platform_id")
+                plot_bottom_left()
+                plot_bottom_left_cummulative()
+                    # # , color="source"
+                    # fig = px.bar(platform_id_df, x="start_date",
+                    #              y="spent_amount", color="platform_id")
 
-                    fig.update_layout(
-                        xaxis_title='Date',
-                        yaxis_title='Expenses',
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                    # fig.update_layout(
+                    #     xaxis_title='Date',
+                    #     yaxis_title='Expenses',
+                    # )
+                    # st.plotly_chart(fig, use_container_width=True)
         with tab2:
-                    # , color="source"
-                    fig = px.bar(Campaigns_df, x="start_date",
-                                 y="spent_amount", color="campaign_name")
+                plot_bottom_right()
+                plot_bottom_right_cummulative()
+                #    # , color="source"
+                #     fig = px.bar(Campaigns_df, x="start_date",
+                #                  y="spent_amount", color="campaign_name")
 
-                    fig.update_layout(
-                        xaxis_title='Date',
-                        yaxis_title='Expenses'
+                #     fig.update_layout(
+                #         xaxis_title='Date',
+                #         yaxis_title='Expenses'
 
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                #     )
+                #     st.plotly_chart(fig, use_container_width=True)
         # except URLError as e:
         #     st.error()
 
