@@ -796,7 +796,7 @@ elif app_mode == 'Spends':
                                                         )
                 filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
                 campaigns_for_sorting = camp_for_sorting(filtered_clients) 
-
+                st.session_state.source_spend  = filtered_df['platform_id'].unique()
                 if not selected_client:
                     fc_col1.warning("Please select a client")
                 else:
@@ -929,7 +929,7 @@ elif app_mode == 'Spends':
                 st.error()
 
         
-
+        
         ####################
         # Charts  sections #
         ####################
