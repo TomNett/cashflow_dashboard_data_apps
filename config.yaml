@@ -1,0 +1,14 @@
+credentials:
+  usernames:
+    actumucet:
+      email: actumucet@gmail.com
+      name: Actum Ucet
+      password: '$2b$12$RRSqHaPi/NlutJpI6pxJX.IXgqywqqRNT5r9VrX6b8XA4TCABF1e6' # Placeholder for hashed password of 'abc'
+     
+        # Placeholder for hashed password of 'def'
+cookie:
+  expiry_days: 30
+  key: some_signature_key # Must be string
+  name: some_cookie_name
+preauthorized:
+  emails:

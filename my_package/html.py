@@ -2,8 +2,7 @@ import base64
 import os
 
 logo_image = os.path.abspath("./app/static/actum-keboola.png")
-
-#logo_image = os.path.abspath("./static/actum-keboola.png")
+#logo_image = os.path.abspath("./static/actum-keboola.png") # local path for testing 
 logo_html = f"""<div style="display: flex; justify-content: flex-end;">
 
 
