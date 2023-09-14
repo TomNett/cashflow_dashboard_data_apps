@@ -819,7 +819,7 @@ if st.session_state["authentication_status"]:
                                                             )
                     filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
                     campaigns_for_sorting = camp_for_sorting(filtered_clients) 
-                    st.session_state.source_spend  = filtered_df['platform_id'].unique()
+                    
                     if not selected_client:
                         fc_col1.warning("Please select a client")
                     else:
@@ -960,8 +960,7 @@ if st.session_state["authentication_status"]:
                 ["Spend By Platform", "Spend By Campaign"])
         
             df_current_month = filtered_df[(filtered_df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
-            filtered_df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year))) & filtered_df["platform_id"].isin(
-                                        st.session_state.source_spend)]
+            filtered_df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year)))]
             spend_current_month = round(
                         np.sum(df_current_month["spent_amount"]), 2)
             if df_current_month.empty:
