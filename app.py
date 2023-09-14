@@ -459,7 +459,7 @@ default = {
     }
 
 # --- AUTH PART --- #
-config_path = os.path.abspath(f"/home/appuser/app/config.yaml")
+config_path = os.path.abspath(f"./app/config.yaml")
 with open(config_path) as file:
     config = yaml.load(file, Loader=SafeLoader)
 
@@ -498,12 +498,6 @@ if st.session_state["authentication_status"]:
     }
     </style>
     """, unsafe_allow_html=True)
-
-
-
-
-
-
 
     if app_mode == 'Analytics':
         with st.container():
