@@ -401,8 +401,8 @@ def cumulative_metrics_charts(selected_metrics):
             fig.update_traces(textposition="top center",fill = 'tozeroy')
             st.plotly_chart(fig, use_container_width=True)
 
-#file_path = "/data/in/tables/ads_insight_fact.csv"
-file_path = os.path.abspath(f"./data/ads_insight_fact.csv") # local path for testing 
+file_path = "/data/in/tables/ads_insight_fact.csv"
+#file_path = os.path.abspath(f"./data/ads_insight_fact.csv") # local path for testing 
 session_state = st.session_state
 
 columns = ["client", "budget", "budget_amount",
@@ -735,8 +735,8 @@ if st.session_state["authentication_status"]:
                 
                 with col:
                     #icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
-                    icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
-                    #icon_image = os.path.abspath(f"./app/static/{icon_path}") 
+                    #icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
+                    icon_image = os.path.abspath(f"./app/static/{icon_path}") 
                     st.markdown(f'''
                     <div style="margin: 10px auto; width: 70%">
                         <div class="div-container" style="display:flex; margin:10px">
