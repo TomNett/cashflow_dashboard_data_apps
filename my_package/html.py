@@ -1,13 +1,13 @@
 import base64
 import os
 
-logo_image = os.path.abspath("./app/static/actum-keboola.png")
-#logo_image = os.path.abspath("./static/actum-keboola.png") # local path for testing 
-logo_html = f"""<div style="display: flex; justify-content: flex-end;">
+#logo_image = os.path.abspath("./app/static/actum-keboola.png")
+logo_image = os.path.abspath("./static/actum-keboola.png") # local path for testing 
+logo_html = f"""<div style="display: flex; justify-content: flex-start;">
 
 
  <img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" 
-         style="width: 350px; margin-right: 20px; margin-bottom:50px;margin-up:50px 
+         style="width: 350px; margin-right: 20px;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 border-radius: 0.5px;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;">             
@@ -54,5 +54,5 @@ title = {
     "description":'<p class="subheader">Description</p>',
     "sourcesPerClick":'<p class="subheader">Top 10 Marketing Sources</p>',
     "topcampaigns":'<p class="subheader">Top Performing Campaigns</p>',
-    "inputdata":'<p class="subheader">Filtered data </p>'
+    "inputdata":'<p class="subheader">Client\'s budget overview </p>'
 }

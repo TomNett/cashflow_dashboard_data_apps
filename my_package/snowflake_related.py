@@ -172,3 +172,4 @@ def delete_row_from_snowflake_by_row_id(id):
         cur.execute(sql)
     
     my_cnx.close()
+    print(sql)

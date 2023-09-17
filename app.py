@@ -1,7 +1,4 @@
 # TODO: Zobrazit kampani ktere bezi v vyprsenem budgetu 
-# TODO vsechno v eurech
-
-
 import streamlit as st
 import warnings
 from streamlit_option_menu import option_menu
@@ -359,9 +356,53 @@ def plot_bottom_right_cummulative():
         fig.update_traces(textposition="top center",fill = 'tozeroy')    
         st.plotly_chart(fig, use_container_width=True)
 
+def cumulative_metrics_charts(selected_metrics):
+    for metric in selected_metrics:
+        campaign_data = duckdb.sql(
+                    f"""
+                    SELECT 
+                    start_date, 
+                    campaign_name,
+                    SUM({metric}) AS total_{metric}
+                    FROM 
+                        filtered_df
+                    WHERE 
+                        start_date > '2023-01-01'
+                    GROUP BY 
+                        start_date, 
+                        campaign_name
+                    ORDER BY 
+                        start_date, 
+                        campaign_name
+                
+                """
+                ).df()
+        unique_campaigns = campaign_data['campaign_name'].unique()
+        # Get multiple color sets
+        colors_set1 = px.colors.qualitative.Plotly
+        colors_set2 = px.colors.qualitative.Dark24
+        colors_set3 = px.colors.qualitative.Set3
 
-file_path = "/data/in/tables/ads_insight_fact.csv"
-#file_path = os.path.abspath(f"./data/ads_insight_fact.csv") # local path for testing 
+        # Combine and slice to get 50 colors
+        combined_colors = colors_set1 + colors_set2 + colors_set3
+        fifty_colors = combined_colors[:50]
+        color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
+        if metric in filtered_df.columns:
+            campaign_data[f'cumulative_{metric}'] = campaign_data.groupby('campaign_name')[f'total_{metric}'].cumsum()
+            fig = px.line(
+                                campaign_data,
+                                x="start_date",
+                                y=f'cumulative_{metric}',
+                                color="campaign_name",
+                                color_discrete_map=color_map,  # Use the custom color map
+                                        
+                                title=f"Cumulative {metric} by campaign name in selected period",
+                            )
+            fig.update_traces(textposition="top center",fill = 'tozeroy')
+            st.plotly_chart(fig, use_container_width=True)
+
+#file_path = "/data/in/tables/ads_insight_fact.csv"
+file_path = os.path.abspath(f"./data/ads_insight_fact.csv") # local path for testing 
 session_state = st.session_state
 
 columns = ["client", "budget", "budget_amount",
@@ -459,7 +500,8 @@ default = {
     }
 
 # --- AUTH PART --- #
-config_path = os.path.abspath(f"./app/config.yaml")
+config_path = os.path.abspath(f"./config.yaml") # local path for testing
+#config_path = os.path.abspath(f"./app/config.yaml")
 with open(config_path) as file:
     config = yaml.load(file, Loader=SafeLoader)
 
@@ -472,6 +514,25 @@ authenticator = stauth.Authenticate(
 )
 
 authenticator.login('Login', 'main')
+st.markdown("""
+            <style>
+                .stButton>button {
+                    float: right;
+                    background-color: #de2312;
+                    color: white;
+                    padding: 14px 20px;
+                    margin: 8px 0;
+                    border: none;
+                    cursor: pointer;
+                    width: 15%;
+                    font-weight: bold;
+                }
+                                
+                .stButton>button:hover {
+                    opacity: 0.8;
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
 if st.session_state["authentication_status"]:
     
@@ -500,6 +561,7 @@ if st.session_state["authentication_status"]:
     """, unsafe_allow_html=True)
 
     if app_mode == 'Analytics':
+        apply_css()
         with st.container():
             col1, col2, col3 = st.columns((1.4,1,1), gap="small")
             col2.title("Analytical page")
@@ -673,8 +735,8 @@ if st.session_state["authentication_status"]:
                 
                 with col:
                     #icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
-                    #icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
-                    icon_image = os.path.abspath(f"./app/static/{icon_path}") 
+                    icon_image = os.path.abspath(f"./static/{icon_path}") # local path for  testing 
+                    #icon_image = os.path.abspath(f"./app/static/{icon_path}") 
                     st.markdown(f'''
                     <div style="margin: 10px auto; width: 70%">
                         <div class="div-container" style="display:flex; margin:10px">
@@ -690,63 +752,105 @@ if st.session_state["authentication_status"]:
                     ''', unsafe_allow_html=True)
             st.write("---")
             selected_metrics = st.multiselect('Select metrics', metrics_list, default=most_frequent_metrics,key="selectedmetrics")
-            tab1, tab2, tab3, tab4 = st.tabs(
-                ["Best performing Campaigns","Visualizations per Platform", "Visualizations per Campaigns", "Raw data"])
-            
-            # grouped['ctr'] = (grouped['link_clicks'] /
-            #                   grouped['impressions']) * 100
-            # Campaigns_df = grouped.copy()
-            # max_campaign = Campaigns_df["ctr"].max()
-            
-            
-            with tab1:
+            try:
                 
-                agg_dict = {metric: 'sum' for metric in selected_metrics}
-                df_top_campaign = filtered_df.groupby(['platform_id', 'campaign_name', 'start_date']).agg(agg_dict).reset_index()
-                
-                st.markdown(title["topcampaigns"], unsafe_allow_html=True)
-                boolean_list = [False for _ in selected_metrics]
-                df_sorted = df_top_campaign.sort_values(by=selected_metrics, ascending=boolean_list)
-                df_sorted = df_sorted.rename(columns={"platform_id": "platform", "campaign_name": "campaign name","start_date": "start date", "link_clicks" : "clicks"}) 
-                df_sorted.columns = df_sorted.columns.str.title()
-                df_sorted = df_sorted.rename(columns={"Cpm": "CPM", "Ctr": "CTR"})
-            
-                
-                #disp_df = disp_df.rename(columns={"since_date": "since date", "until_date": "until date","budget_amount": "Budget Amount"}) 
-                df_sorted.columns = df_sorted.columns.str.title()
-                df_sorted_for_print = df_sorted.head(5)
-                st.write(df_sorted_for_print.to_html(index=False), unsafe_allow_html=True)
-                
-                col1, col2 = st.columns(2)
-                # 
+                tab1, tab2, tab3, tab4, tab5 = st.tabs(
+                    ["Best performing Campaigns","Visualizations per Platform", "Visualizations per Campaigns", "Cumulative Charts" ,"Raw data"])
+                if not selected_metrics:
+                    st.warning("ℹ️ Select a metric")
+                    
+                else:
+                # grouped['ctr'] = (grouped['link_clicks'] /
+                #                   grouped['impressions']) * 100
+                # Campaigns_df = grouped.copy()
+                # max_campaign = Campaigns_df["ctr"].max()
 
-            with tab2:
-                #col1, col2 = st.columns(2)
-                #with col1:
-
-                for metric in selected_metrics:
-                    st.subheader(metric.title() + ' chart')
-                    if metric in filtered_df.columns:
-                        fig = px.bar(filtered_df, x="start_date", y=metric, color="platform_id")
-                        fig.update_layout(xaxis_title='Date', yaxis_title=metric)
-                        st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.write(f"The metric '{metric}' is not available in the data.")
-            with tab3:
                 
-                for metric in selected_metrics:
-                    st.subheader(metric.title() + ' chart')
-                    if metric in filtered_df.columns:
-                        fig = px.bar(filtered_df, x="start_date", y=metric, color="campaign_name")
-                        fig.update_layout(xaxis_title='Date', yaxis_title=metric)
-                        st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.write(f"The metric '{metric}' is not available in the data.")
-                
+                    with tab1:
+                        
+                        agg_dict = {metric: 'sum' for metric in selected_metrics}
+                        df_top_campaign = filtered_df.groupby(['platform_id', 'campaign_name', 'start_date']).agg(agg_dict).reset_index()
+                        
+                        st.markdown(title["topcampaigns"], unsafe_allow_html=True)
+                        boolean_list = [False for _ in selected_metrics]
+                        df_sorted = df_top_campaign.sort_values(by=selected_metrics, ascending=boolean_list)
+                        df_sorted = df_sorted.rename(columns={"platform_id": "platform", "campaign_name": "campaign name","start_date": "start date", "link_clicks" : "clicks"}) 
+                        df_sorted.columns = df_sorted.columns.str.title()
+                        df_sorted = df_sorted.rename(columns={"Cpm": "CPM", "Ctr": "CTR"})
+                    
+                        
+                        #disp_df = disp_df.rename(columns={"since_date": "since date", "until_date": "until date","budget_amount": "Budget Amount"}) 
+                        df_sorted.columns = df_sorted.columns.str.title()
+                        df_sorted_for_print = df_sorted.head(5)
+                        st.write(df_sorted_for_print.to_html(index=False), unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns(2)
+                        # 
 
-            with tab4:
-                st.markdown('Dataset :')
-                st.write(df.head())
+                    with tab2:
+                        #col1, col2 = st.columns(2)
+                        #with col1:
+
+                        for metric in selected_metrics:
+                            st.subheader(metric.title() + ' chart')
+                            if metric in filtered_df.columns:
+                                fig = px.bar(filtered_df, x="start_date", y=metric, color="platform_id")
+                                fig.update_layout(xaxis_title='Date', yaxis_title=metric)
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.write(f"The metric '{metric}' is not available in the data.")
+                    with tab3:
+                        
+                        for metric in selected_metrics:
+                            st.subheader(metric.title() + ' chart')
+                            if metric in filtered_df.columns:
+                                fig = px.bar(filtered_df, x="start_date", y=metric, color="campaign_name")
+                                fig.update_layout(xaxis_title='Date', yaxis_title=metric)
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.write(f"The metric '{metric}' is not available in the data.")
+                        
+
+                    with tab4:
+                        cumulative_metrics_charts(selected_metrics)
+                        # unique_campaigns = filtered_df['campaign_name'].unique()
+                        # # Get multiple color sets
+                        # colors_set1 = px.colors.qualitative.Plotly
+                        # colors_set2 = px.colors.qualitative.Dark24
+                        # colors_set3 = px.colors.qualitative.Set3
+
+                        # # Combine and slice to get 50 colors
+                        # combined_colors = colors_set1 + colors_set2 + colors_set3
+                        # fifty_colors = combined_colors[:50]
+                        # color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
+                        # for metric in selected_metrics:
+                        #     st.subheader(metric.title() + ' cumulative chart')
+                            
+                        #     st.write(filtered_df)
+                        #     if metric in filtered_df.columns:
+                        #         filtered_df[f'cumulative_{metric}'] = filtered_df.groupby('start_date')[f'{metric}'].cumsum()                        
+                        #         fig = px.line(
+                        #             filtered_df,
+                        #             x="start_date",
+                        #             y=f'cumulative_{metric}',
+                        #             color="campaign_name",
+                        #             color_discrete_map=color_map,  # Use the custom color map
+                                            
+                        #             title=f"Cumulative {metric} by campaign_name in selected period",
+                        #         )
+                                
+                        #         fig.update_traces(textposition="top center",fill = 'tozeroy')
+                        #         #fig = px.bar(filtered_df, x="start_date", y=f'cumulative_{metric}', color="campaign_name")
+                        #         fig.update_layout(xaxis_title='Date', yaxis_title=f'cumulative_{metric}')
+                        #         st.plotly_chart(fig, use_container_width=True)
+                        #     else:
+                        #         st.write(f"The metric '{metric}' is not available in the data.")
+                        
+                    with tab5:
+                        st.markdown('Dataset :')
+                        st.write(df.head())
+            except URLError as e:
+                    st.error()
 
 
     elif app_mode == 'Spends':
@@ -769,17 +873,13 @@ if st.session_state["authentication_status"]:
             ##################################################
             
             
-            with st.container():
-                col1, col2, col3 = st.columns((1.4,1,1), gap="small")
-                col2.header("Current month overview")
+            
             
             first_metric,second_metric = st.columns(2)
             
             
             
-            with st.container():
-                col1, col2, col3 = st.columns((1.4,1,1), gap="small")
-                col2.header("Charts")   
+             
                 
             with st.container():
                     #--- Data from snowflake for filters ---#        
@@ -821,6 +921,7 @@ if st.session_state["authentication_status"]:
                     campaigns_for_sorting = camp_for_sorting(filtered_clients) 
                     
                     if not selected_client:
+                        st.warning("ℹ️ Select a client and budgets to display charts")
                         fc_col1.warning("Please select a client")
                     else:
                         if len(st.session_state.selected_client_spend) != 0:
@@ -854,7 +955,9 @@ if st.session_state["authentication_status"]:
                                                                             distinct_campaigns_by_platform, default=distinct_campaigns_by_platform, placeholder="Select a campaign", key="campaign_spend")
                                     filtered_df = filtered_df[filtered_df["campaign_name"].isin(st.session_state.campaign_spend)]
                             
-                                    
+                            with st.container():
+                                col1, col2, col3 = st.columns((1.4,1,1), gap="small")
+                                col2.header("Current month overview")        
                             col1, col2 = st.columns(2)
                             # Column 1
                             #current_month_name = datetime.datetime.now().strftime("%B")
@@ -934,6 +1037,64 @@ if st.session_state["authentication_status"]:
                                     
 
                                     col2.plotly_chart(fig_spend, use_container_width=True)
+                                    ####################
+                                    # Charts  sections #
+                                    ####################
+                                    with st.container():
+                                        col1, col2, col3 = st.columns((1.4,1,1), gap="small")
+                                        col2.header("Charts")    
+
+                                    tab1, tab2 = st.tabs(
+                                        ["Spend By Platform", "Spend By Campaign"])
+                                
+                                    df_current_month = filtered_df[(filtered_df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
+                                    filtered_df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year)))]
+                                    spend_current_month = round(
+                                                np.sum(df_current_month["spent_amount"]), 2)
+                                    if df_current_month.empty:
+                                        first_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
+                                    else:
+                                        with first_metric:
+                                            plot_metric(
+                                            f"Total spend in selected period", # : {since_date.strftime('%Y-%m-%d')} to {until_date.strftime('%Y-%m-%d')}
+                                            spend_current_month,
+                                            
+                                            prefix="€",
+                                            suffix="",
+                                            show_graph=True,
+                                            color_graph="rgba(0, 53, 201, 0.2)",
+                                        )
+                                        #col1.metric(f"Total spend in {current_month_name} ", str("{:,}".format(spend_current_month).replace(",", " ")) + ' EUR')
+                                    # Column 2
+
+                                    platform_id_spend = df_current_month.groupby(
+                                        ['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
+
+                                    # target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')
+                                    if platform_id_spend.empty:
+                                        second_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
+                                    else:
+                                        with second_metric:
+                                            plot_metric(
+                                            f"Average Spend By Platform in selected period",
+                                            round(np.mean(platform_id_spend["spent_amount"]), 2),
+                                            prefix="€",
+                                            suffix="",
+                                            show_graph=True,
+                                            color_graph="rgba(255, 43, 43, 0.2)",
+                                        )
+
+                                        
+                                    st.write("---")   
+                                       
+
+                                    with tab1:
+                                            plot_bottom_left()
+                                            plot_bottom_left_cummulative()
+                                            
+                                    with tab2:
+                                            plot_bottom_right()
+                                            plot_bottom_right_cummulative()
                             except URLError as e:
                                 st.error()
 
@@ -953,84 +1114,8 @@ if st.session_state["authentication_status"]:
 
             
             
-            ####################
-            # Charts  sections #
-            ####################
-            tab1, tab2 = st.tabs(
-                ["Spend By Platform", "Spend By Campaign"])
-        
-            df_current_month = filtered_df[(filtered_df['start_date'] >= pd.to_datetime(first_day_month_from_name(current_month_name))) & (
-            filtered_df['start_date'] <= pd.to_datetime(last_day_month_from_name(current_month_name,current_year)))]
-            spend_current_month = round(
-                        np.sum(df_current_month["spent_amount"]), 2)
-            if df_current_month.empty:
-                first_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
-            else:
-                with first_metric:
-                    plot_metric(
-                    f"Total spend in selected period", # : {since_date.strftime('%Y-%m-%d')} to {until_date.strftime('%Y-%m-%d')}
-                    spend_current_month,
+            
                     
-                    prefix="€",
-                    suffix="",
-                    show_graph=True,
-                    color_graph="rgba(0, 53, 201, 0.2)",
-                )
-                #col1.metric(f"Total spend in {current_month_name} ", str("{:,}".format(spend_current_month).replace(",", " ")) + ' EUR')
-            # Column 2
-
-            platform_id_spend = df_current_month.groupby(
-                ['platform_id']).agg({'spent_amount': 'sum'}).reset_index()
-
-            # target_value_platform_id = col2.number_input('Target Spend Amount For platform_id')
-            if platform_id_spend.empty:
-                second_metric.warning(f"There are no data for {current_month_name} or there are no active campaigns for {selected_client[0]} client and its {selected_budgets[0]} budget")
-            else:
-                with second_metric:
-                    plot_metric(
-                    f"Average Spend By Platform in selected period",
-                    round(np.mean(platform_id_spend["spent_amount"]), 2),
-                    prefix="€",
-                    suffix="",
-                    show_graph=True,
-                    color_graph="rgba(255, 43, 43, 0.2)",
-                )
-
-                
-            st.write("---")
-
-            # grouped = filtered_df.groupby(['campaign_name', 'start_date'])\
-            #             .agg({'spent_amount': 'sum'}).reset_index()
-            # Campaigns_df = grouped.copy()
-            # grouped = filtered_df.groupby(['platform_id', 'start_date'])\
-            #             .agg({'spent_amount': 'sum'}).reset_index()
-            # platform_id_df = grouped.copy()
-
-            with tab1:
-                    plot_bottom_left()
-                    plot_bottom_left_cummulative()
-                        # # , color="source"
-                        # fig = px.bar(platform_id_df, x="start_date",
-                        #              y="spent_amount", color="platform_id")
-
-                        # fig.update_layout(
-                        #     xaxis_title='Date',
-                        #     yaxis_title='Expenses',
-                        # )
-                        # st.plotly_chart(fig, use_container_width=True)
-            with tab2:
-                    plot_bottom_right()
-                    plot_bottom_right_cummulative()
-                    #    # , color="source"
-                    #     fig = px.bar(Campaigns_df, x="start_date",
-                    #                  y="spent_amount", color="campaign_name")
-
-                    #     fig.update_layout(
-                    #         xaxis_title='Date',
-                    #         yaxis_title='Expenses'
-
-                    #     )
-                    #     st.plotly_chart(fig, use_container_width=True)
             # except URLError as e:
             #     st.error()
 
@@ -1050,7 +1135,8 @@ if st.session_state["authentication_status"]:
             #############################
             ######## Filters ############
             #############################
-            currency_distinct = ["EUR", "CZK", "USD"]
+            currency_distinct = ["EUR"]
+            #currency_distinct = ["EUR", "CZK", "USD"]
 
             # Container for budget df
             # Define column names for the empty dataframe
@@ -1094,16 +1180,23 @@ if st.session_state["authentication_status"]:
                                                             distinct_source, default=distinct_source, placeholder="All platform_ids", key="source")
                         if not selected_sources:
                             col11.error("Please select a platform.")
-                            selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
-                                                                ordered_list_year_month, index=default_ix,  placeholder="All months", disabled=True, key="month_camp")
+                            #selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
+                                                                #ordered_list_year_month, index=default_ix,  placeholder="All months", disabled=True, key="month_camp")
                             session_state.row[col] = col11.multiselect('Select a campaign:',
                                                                     distinct_campaigns, default=None, placeholder="All campaigns", disabled=True,  key="campaign")
                         else:
 
-                            selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
-                                                                ordered_list_year_month, index=default_ix,  placeholder="All months", key="month_camp")
-                            if len(st.session_state.month_camp) != 0:
-                                filtered_df = df[df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))] #& (
+                            # selected_year_month = col11.selectbox('Select Campaign Start Date (Year & Month)',
+                            #                                     ordered_list_year_month, index=default_ix,  placeholder="All months", key="month_camp")
+                            if (len(str(st.session_state.since_date_budget)) !=0) & (len(str(st.session_state.until_date_budget)) !=0) :
+                                since_date = pd.Timestamp(st.session_state.since_date_budget)
+                                until_date = pd.Timestamp(st.session_state.until_date_budget)
+                                filtered_df = df[(df['start_date'] >= since_date) & (
+                                    df['start_date'] <= until_date)]
+                            
+                                 
+                            # if len(st.session_state.month_camp) != 0:
+                            #     filtered_df = df[df['start_date'] >= pd.to_datetime(first_day_month(selected_year_month))] #& (
                                     #df['start_date'] <= pd.to_datetime(last_day_month(selected_year_month)))
                             if len(st.session_state.source) != 0:
                                 filtered_df = filtered_df[filtered_df['platform_id'].isin(
@@ -1131,8 +1224,33 @@ if st.session_state["authentication_status"]:
                         #st.markdown(session_state.row.style.hide(axis="index").to_html(), unsafe_allow_html=True)
                         st.write('')
                         
-                    
-                        if st.button("Add Row", disabled=False): #TODO: Transform it to use snowflake funct
+                        st.markdown("""
+                            <style>
+                                .stButton > button[kind='primary'] {
+                                    background-image: linear-gradient(to right, #1D976C 0%, #93F9B9  51%, #1D976C  100%);
+                                    margin: 10px;
+                                    padding: 14px 20px;                                    
+                                    text-align: center;
+                                    text-transform: uppercase;
+                                    transition: 0.5s;
+                                    background-size: 200% auto;
+                                    color: white;            
+                                    box-shadow: 0 0 20px #eee;
+                                    border-radius: 10px;
+                                    display: block;
+                                    font-weight: bold;                                                                
+                                    width: 20%;
+                                    float: right;
+                                }
+                                
+                                .stButton > button[kind='primary']:hover {
+                                    background-position: right center; /* change the direction of the change here */
+                                    color: #fff;
+                                    text-decoration: none;
+                                }
+                            </style>
+                            """, unsafe_allow_html=True)
+                        if st.button("Add Row", disabled=False, type = 'primary'): #TODO: Transform it to use snowflake funct
                             insert_rows_to_table(session_state.row)
                             st.success("Item successfully added!")
                             #insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
@@ -1145,81 +1263,96 @@ if st.session_state["authentication_status"]:
                         # session_state.row = pd.Series(index=columns)
                         st.session_state.deletekey = None
                         client_list = data_from_snowflake["client"].unique() 
-                        
-                        st.warning(""" If you want to ***delete*** a budget, select the client and budget name  """)
+                        info_container = st.container()
+                        #warning_messege = st.warning(""" If you want to ***delete*** a budget, select the client and budget name  """)
+                        st.markdown("""
+                        <style>
+                            .stButton>button {
+                                float: right;
+                                background-color: #de2312;
+                                color: white;
+                                padding: 14px 20px;
+                                margin: 8px 0;
+                                border: none;
+                                cursor: pointer;
+                                width: 15%;
+                                font-weight: bold;
+                            }
+                                            
+                            .stButton>button:hover {
+                                opacity: 0.8;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
+                        if 'deletekey' not in st.session_state:
+                            st.session_state.deletekey = None
+                        # Initialize session states if not already set
+                        if 'deletekey' not in st.session_state:
+                            st.session_state.deletekey = None
+
+                        if 'confirm_delete' not in st.session_state:
+                            st.session_state.confirm_delete = False
                         col1, col2 = st.columns(2)
-                        client_to_delete = col1.multiselect('Client',
-                                                        client_list, default=None, max_selections=1, placeholder="Select a client to delete", key="selected_client_delete")
+                        client_to_delete = col1.multiselect('Client', client_list, default=None, max_selections=1, placeholder="Select a client to delete", key="selected_client_delete")
                         if not client_to_delete:
-                            st.error("Please select a client")
+                            col1.error("Please select a client")
                         else:
                             if len(st.session_state.selected_client_delete) != 0:
                                 filtered_df = data_from_snowflake[data_from_snowflake["client"].isin(client_to_delete)]
-                                
                                 budget_list = filtered_df["budget"].unique() 
-                                selected_budgets_to_delete = col2.multiselect('Budgets to delete',budget_list,placeholder='Select a budget to delete', default=budget_list,max_selections=1, key = "selected_budgets_delete")
-                                st.session_state.deletekey = client_to_delete[0] + '-' + selected_budgets_to_delete[0]   
-                        
-                        
-                        # if row_num ==0 :
-                        #     index_to_delete = st.number_input(
-                        #             'Budget ID', value=0,min_value=0, max_value = row_num)
-                        # else:
-                        #     index_to_delete = st.number_input(
-                        #                 'Budget ID', value=0,min_value=0, max_value = row_num-1)
-                        
-                        st.markdown("""
-                            <style>
-                                .stButton>button {
-                                    background-color: #de2312;
-                                    color: white;
-                                    padding: 14px 20px;
-                                    margin: 8px 0;
-                                    border: none;
-                                    cursor: pointer;
-                                    width: 20%;
-                                    font-weight: bold;
-                                }
+                                selected_budgets_to_delete = col2.multiselect('Budgets to delete',budget_list,placeholder='Select a budget to delete', default=None,max_selections=1, key = "selected_budgets_delete")
                                 
-                                .stButton>button:hover {
-                                    opacity: 0.8;
-                                }
-                            </style>
-                            """, unsafe_allow_html=True)
-                        delete_warning = st.empty()
-                        confirmed = st.empty()
-                        not_confirmed = st.empty()
-                        if st.session_state.deletekey == None :
-                            if st.button("Delete", key="deleterow", disabled=True):
-                                delete_row_from_snowflake_by_row_id(1)
-                        else:
-                            if confirmed.button("Delete", key="deleterow", disabled=False):
-                                delete_warning.warning("Are you sure you want to delete this budget? This action cannot be undone.")
-                                confirmed_button = confirmed.button("Confirm",use_container_width=True,key = 'confirmedb')
-                                not_confirmed_button= not_confirmed.button("Reject",use_container_width=True,key = 'notconfirmedb')
-                                if confirmed_button:
-                                    delete_row_from_snowflake_by_row_id(st.session_state.deletekey)
-                                    st.success("Item deleted successfully!")
-                                    delete_warning.empty()  # Clears the warning
-                                    confirmed.empty()   
-                                    not_confirmed.empty()
-                                    confirmed_button = st.empty()    # Clears the Confirm button
-                                    not_confirmed_button = st.empty()    # Clears the Confirm button
+                                if selected_budgets_to_delete:
+                                    st.session_state.deletekey = client_to_delete[0] + '-' + selected_budgets_to_delete[0]
+                            
+                                if st.session_state.confirm_delete:
+                                    st.warning("Are you sure you want to delete this budget? This action cannot be undone.")
+                                    confirmed_button = st.button("Confirm")
+                                    not_confirmed_button = st.button("Reject")
                                     
-                                if not_confirmed.button("Reject",use_container_width=True):#TODO
-                                    delete_warning.empty()
-                                    not_confirmed.empty()
-                                    confirmed.empty()
-                                    confirmed_button = st.empty()    # Clears the Confirm button
-                                    not_confirmed_button = st.empty()
+                                    if confirmed_button:
+                                        delete_row_from_snowflake_by_row_id(st.session_state.deletekey)
+                                        success_mes = st.success("Item deleted successfully!")
+                                        st.session_state.confirm_delete = False
+                                        st.info("Press ***R*** to apply changes")                                                                                  
+                                        
+                                        
+                                    elif not_confirmed_button:
+                                        st.session_state.confirm_delete = False  # Reset state
                                     
+                                # If confirm_delete is not set, show the "Delete" button
+                                else:
+                                    if st.button("Delete"):
+                                        st.session_state.confirm_delete = True  
+                            else:
+                                st.info(""" If you want to ***delete*** a budget, select the client and budget name  """)
+                                st.button("Delete", key="deleterow", disabled=True)
 
-                        # st.error('Function does not work right now')
+
                         # if st.button("Change Row", key='rowchange', disabled=True):
                         #     # TODO
                         #     print('Hi')
-                    st.header("Budgets and their limits")                
-                    st.table(budget_table_fetch())
+                        
+                    st.header("Budgets and their limits")
+                    current_budgets = budget_table_fetch()
+                    current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))  
+                    current_budgets = current_budgets.rename(columns={
+                       "src_id"  : "Client-Budget",
+                       "client"  : "Client",
+                       "budget" : "Budget",
+                       "budget_amount" : "Budget Amount",
+                       "currency" : "Currency",
+                       "since_date" : "Since Date",
+                       "until_date" : "Until Date",
+                       "campaigns" : "Campaigns",
+                       
+                       
+                       
+                       
+                    }) 
+                    st.write(current_budgets.to_html(escape=False, index=False), unsafe_allow_html=True)  
+                    #st.write(budget_table_fetch().to_html(index=False), unsafe_allow_html=True)           
+                  
                     
 
                     #git current_budgets['campaigns'] = current_budgets['campaigns'].apply(lambda x: '<br>'.join(['["' + '",<br>"'.join(x) + '"]']))
@@ -1251,6 +1384,7 @@ if st.session_state["authentication_status"]:
             
 
     elif app_mode == 'Budgets':
+        apply_css()
 
         with st.container():
             col1, col2, col3 = st.columns(3, gap="small")
@@ -1307,366 +1441,458 @@ if st.session_state["authentication_status"]:
                 default_ix_for_filter = months_order.index(current_month_name) # 
             
             ##
-            with st.expander("Filters"):
+            # with st.expander("Filters"):
                 
-                # Create two columns for filter controls
-                #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
-                filtered_clients= st.session_state.df
+            #     # Create two columns for filter controls
+            #     #data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month())]
+            #     filtered_clients= st.session_state.df
+            with st.expander("Filters settings"):
+                filter_container = st.container()
+                fc_col1, fc_col2 = filter_container.columns(2)
+                fc_col3, fc_col4 = filter_container.columns(2)
+
+            with st.container():
+
+                ##################
+                # Filter section #
+                ##################
                 
-                with st.form("entry_form_budget_filter", clear_on_submit=False):
-                    
-                    col1f, col2f = st.columns((1.5, 3))
-                    col1f.selectbox('Select Year and Month:',
-                                                    ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
-                    col2f.multiselect('Select a client',
-                                                        client_list, default=None, max_selections=1, placeholder="Client", key="selected_client_spend_tab1")
-                    
-                    apply_css()
-                    submitted = st.form_submit_button("Filter data",use_container_width = True)
-                    if submitted:
-                        filtered_clients = filtered_clients[filtered_clients['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
-                        filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["selected_client_spend_tab1"])]
-            
-            # Tabs for visuals
-            tab1, tab2 = st.tabs(
-                ["Detailed Budget Examination", "Client overview"])
-            with tab2:
-                
+                with st.container():
+                        #--- Data from snowflake for filters ---#        
+                    data_from_snowflake = st.session_state.df    
+                    data_from_snowflake.columns = data_from_snowflake.columns.str.lower()
+                    data_from_snowflake.columns = data_from_snowflake.columns.str.title()
+                    data_from_snowflake['Since_Date'] = pd.to_datetime(data_from_snowflake['Since_Date'])
+                    data_from_snowflake['Until_Date'] = pd.to_datetime(data_from_snowflake['Until_Date'])
+                    client_list = data_from_snowflake["Client"].unique()    
                         
-
-                col1, col2 = st.columns((2, 1), gap="large")
-
-
-                # --- Data for a chart --- #
-
-                ####
-                budget_by_client = filtered_clients.groupby(['Client']).agg(
-                            {'Budget_Amount': 'sum'}).reset_index().sort_values(by='Budget_Amount', ascending=False)
-                filtered_df = df 
-                #camp_df = filtered_df.loc[filtered_df["campaign_name"] in ]
-
-                
-                campaigns_for_sorting = camp_for_sorting(filtered_clients)
-                
-                filtered_df_2 = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
-                campaign_spend = filtered_df_2.groupby(['campaign_name']).agg(
-                                    {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
-                platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
-                            {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
-                
-                mapping = st.session_state.df.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
-
-                
-                merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
-                total_spent_per_client = merged.groupby('Client')['spent_amount'].sum().reset_index()
-                final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
-                final_df.rename(columns={'spent_amount': 'Total_Spent'}, inplace=True)
-                final_df['Unspent'] = final_df['Budget_Amount'] - final_df['Total_Spent']
-                final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)
-                budgets_above_budget = final_df[final_df["Total_Spent"]> final_df['Budget_Amount']]
-                budgets_below_budget = final_df[final_df["Total_Spent"] <  final_df['Budget_Amount']]
-                budgets_below_budget = budgets_below_budget.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
-
-                
-                
-                # --- Printing filtered data in second column --- #
-                col2.markdown(title["inputdata"], unsafe_allow_html=True)
-                col2.table(budgets_below_budget)
-                col2.error(" ⬇️ Spendings exceed budget limit")
-                col2.table(budgets_above_budget)
-                st.write("---")
-                # --- Creating plot for client's budget --- #
-                if budgets_below_budget.empty:
-                    col1.warning(":face_with_monocle:" + " There are no data for this date and client")
-                    # Adding bars for Unspent
-                else: 
-                    # Adding bars for Total Spent
-                    fig_spend = go.Figure()
-                    for index, row in budgets_below_budget.iterrows():
-                        fig_spend.add_trace(go.Bar(
-                                x=[row['Total spend']],
-                                y=[row['Client']],
-                                name='Spent',
-                                orientation='h',
-                                text=f"{row['Percentage spend']:.2f} %",
-                                textposition='auto',
-                                textfont_color = 'white',
-                                marker_color='#d33682'
-                            ))
-                    for index, row in budgets_below_budget.iterrows():
-                            fig_spend.add_trace(go.Bar(
-                                x=[row['Unspent']],
-                                y=[row['Client']],
-                                #name='Unspent',
-                                orientation='h',
-                                text=f"{row['Budget amount']} EUR",
-                                textposition='outside',
-                                marker_color=px.colors.qualitative.Plotly[2]  # Using a fixed color for Unspent
-                            ))
-                    # Update layout settings
-                    max_budget = budgets_below_budget['Budget amount'].max()
-                    max_spend = budgets_below_budget['Total spend'].max()
-                    if max_budget >= max_spend:
-                        max_v = max_budget
-                    else:
-                        max_v = max_spend
-
-                    fig_spend.update_layout(title='Client Spend vs Budget',
-                                                xaxis=dict(
-                                                    range=[0, max_v * 1.10], title='EUR'),
-                                                yaxis_title='',
-                                                barmode='stack',
-                                                showlegend=False)
-                        #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
-                    col1.plotly_chart(fig_spend, use_container_width=True)
+                    try:
+                        # Create two columns for filter controls
                     
-                    #########################
-                    # ---  Bar chart --- #
-                    #########################
-                col11, col12 = st.columns((2, 1), gap="large")
+                        since_date = fc_col3.date_input("Select a start date:",
+                                                    datetime.date(current_year, current_month-3, 1), key="since_date")
 
-                spendings_df = pd.DataFrame(columns=['Client', 'Platform', 'Spend'])
+                        # Create filter controls for source and campaign selection in the second column
+                        
+                        until_date = fc_col4.date_input("Select an end date:",
+                                                    datetime.date(current_year, current_month, current_day), key="until_date")
+                        since_date = pd.Timestamp(st.session_state.since_date)
+                        until_date = pd.Timestamp(st.session_state.until_date)
+                        filtered_df = df[(df['start_date'] >= since_date) & (
+                            df['start_date'] <= until_date)]
+                        
+                        
+                        col11, col12 = st.columns((1.5, 1.5))
+                        col111, col122 = st.columns((1.5, 1.5))
+                        with col11:
+                                selected_client = fc_col1.multiselect('Clients',
+                                                                client_list, default=None, placeholder='Select a client',
+                                                                key = "selected_client_spend", max_selections = 1
+                                                                )
+                        filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend"])]    
+                        campaigns_for_sorting = camp_for_sorting(filtered_clients) 
 
-                    # for index, row in filtered_clients.iterrows():
-                    #     for campaign in row['Campaings']:
-                    #         platform = campaign.split('-')[0]
-
-                    #         # Check if the campaign exists in campaign_spend
-                    #         campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
-                    #         if not campaign_data.empty:
-                    #             spend = campaign_data.iloc[0]
-                    #         else:
-                    #             spend = 0
-
-                    #         # Append the data to the spendings_df
-                    #         new_row = pd.DataFrame({
-                    #             'Client': [row['Client']],
-                    #             'Platform': [platform],
-                    #             'Spend': [spend]
-                    #         })
-                    #         spendings_df = pd.concat([spendings_df, new_row], ignore_index=True)
-                    # # Aggregate spendings by client and platform
-                    # spendings_agg = spendings_df.groupby(['Client', 'Platform']).sum().reset_index()
-                    # # Create a grouped bar chart using Plotly
-                    # fig = go.Figure()
-                    # platforms = spendings_agg['Platform'].unique()
-
-                    # for platform in platforms:
-                    #     filtered_data = spendings_agg[spendings_agg['Platform'] == platform]
-                    #     fig.add_trace(go.Bar(
-                    #         x=filtered_data['Client'],
-                    #         y=filtered_data['Spend'],
-                    #         name=platform,
-                            
-                    #     ))
-                    # fig.update_layout(
-                    #     legend_title_text='Platform',                    
-                    #     legend=dict(
-                    #         font=dict(
-                    #             size=20                                                                                    
-                    #         )
-                    #     ),
-                    #     xaxis=dict(
-                    #         tickfont=dict(
-                    #             size=20
-                    #         )
-                    #     )
-                    # )                
-
-                    # col11.plotly_chart(fig, use_container_width=True) 
-
-                    #########################
-                    #########################
-                    #########################
-                if filtered_clients.empty:
-                    col11.warning("🧐" +"There are no data for this date and client")  
-                else:                 
-                    for index, row in filtered_clients.iterrows():
-                        for campaign in row['Campaigns']:
-                            platform = campaign.split('-')[0]
-
-                            # Check if the campaign exists in campaign_spend
-                            campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
-                            if not campaign_data.empty:
-                                spend = campaign_data.iloc[0]
+                        if not selected_client:
+                            st.warning("ℹ️ Select a client and budgets to display charts")
+                            fc_col1.warning("Please select a client")
+                        else:
+                            if len(st.session_state.selected_client_spend) != 0:
+                                filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
+                                distinct_campaigns_by_platform = filtered_df['campaign_name'].unique()
+                                budget_list = filtered_clients["Budget"].unique() 
+                                selected_budgets = fc_col2.multiselect('Budgets',budget_list,placeholder='Select a budget', default=budget_list, key = "selected_budgets_spend")
+                            if not selected_budgets:
+                                fc_col2.error("Please select budget")
                             else:
-                                spend = 0
+                                if len(st.session_state.selected_budgets_spend) != 0:
+                                    filtered_clients= filtered_clients[filtered_clients['Budget'].isin(st.session_state["selected_budgets_spend"])]    
+                                    campaigns_for_sorting = camp_for_sorting(filtered_clients)
+                                    filtered_df = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
+                                    distinct_platfroms = filtered_df['platform_id'].unique()
 
-                                # Append the data to the spendings_df
-                            new_row = pd.DataFrame({
-                                'Client': [row['Client']],
-                                'Platform': [platform],
-                                'Spend': [spend]
-                            })
-                            spendings_df = pd.concat([spendings_df, new_row], ignore_index=True)
-                        
-                    spendings_df = spendings_df.drop_duplicates()
-                        
-                    # Aggregate spendings by client and platform
-                    spendings_agg = spendings_df.groupby(['Client', 'Platform']).sum().reset_index()
-
-                    max_budget = final_df['Budget_Amount'].max()
-                    max_spend = final_df['Total_Spent'].max()
-                    if max_budget >= max_spend:
-                        max_v = max_budget
-                    else:
-                        max_v = max_spend
-                        
-                        
-                    # Create a grouped bar chart using Plotly
-                    fig = go.Figure()
-                    platforms = spendings_agg['Platform'].unique()
-
-                    for platform in platforms:
-                        filtered_data = spendings_agg[spendings_agg['Platform'] == platform]
-                        fig.add_trace(go.Bar(
-                            x=filtered_data['Client'],
-                            y=filtered_data['Spend'],
-                            name=platform
-                        ))
-
-                    # Update the bar mode to "stack" to get the desired visualization
-                    fig.update_layout(
-                        barmode='stack',
-                        legend_title_text='Platform',
-                        legend=dict(
-                            font=dict(
-                                size=20
-                            )
-                        ),
-                        xaxis=dict(
-                            tickfont=dict(
-                                size=20
-                            )
-                        ),
-                        yaxis=dict(
-                        range=[0, max_v * 1.2], title='EUR')
-                    )
-                    fig.update_layout(title="Spendings by Platform for Selected Client", )
-                    col11.plotly_chart(fig, use_container_width=True) 
-
-                st.divider()  
-
-                    
-                
-
-                # --- TAB 2 FOR BUDGETS --- #
-                
-                with tab1:
-                    st.header("Filters: ")
-
-                    
-                    with st.form("entry_form_budget_filter_tab2", clear_on_submit=False):
-                        col1f, col2f = st.columns((1.5, 3))
-                        col1f.selectbox('Select Year and Month:',
-                                                        ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
-                        col2f.multiselect('Select a client:',
-                                                            client_list, default=None, max_selections=1,  placeholder="Client", key="selected_client_spend_tab2")
-                        apply_css()
-                        submitted = st.form_submit_button("Filter data",use_container_width = True)
-                        if submitted:
-                            data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))]
-                            filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend_tab2"])]
-                            filtered_df = df[df["start_date"]>= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))] 
-                    #################################
-                    # --- Budget over time look --- #
-                    #################################
-                    consolidated_daily_spend = pd.DataFrame()
-                    
-                    daily_spend = filtered_df.groupby(['start_date', 'campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
-                    budgets = filtered_clients['Budget'].unique()
-                    full_date_range = pd.date_range(start=daily_spend['start_date'].min(), end=daily_spend['start_date'].max())
-                    consolidated_daily_spend = pd.DataFrame({'Date': full_date_range})
-                    # Create a complete date range from the earliest to the latest date in the dataset
-                    ind = 1
-                    fig = go.Figure()
-                    for budget in budgets:
-                            related_campaigns = filtered_clients[filtered_clients['Budget'] == budget]['Campaigns'].explode().unique()
-
-                                        # Filter the daily_spend dataframe for those campaigns
-                            budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)].copy()
-                                        
-                            campaign_cumsums = []  # A list to hold the cumulative sums for each campaign
-                                        
-                            for campaign in related_campaigns:
-                                    campaign_data = budget_daily_spend[budget_daily_spend['campaign_name'] == campaign].set_index('start_date')
-                                            
-                                            # Fill missing dates with zeros for this campaign
-                                    campaign_data = campaign_data.reindex(full_date_range, fill_value=0).reset_index()
-                                    campaign_data['cumulative_spent'] = campaign_data['spent_amount'].cumsum()
-                                            
-                                    campaign_cumsums.append(campaign_data['cumulative_spent'])
-
-                                        # Sum the cumulative sums for each campaign to get the cumulative sum for the entire budget
+                                # Tabs for visuals
+                                tab1, tab2 = st.tabs(
+                                    ["Detailed Budget Examination", "Client overview"])
+                                with tab2:
                                     
-                            consolidated_daily_spend[budget] = sum(campaign_cumsums)
+                                            
 
-                            fig.add_trace(go.Scatter(x=consolidated_daily_spend["Date"], y=consolidated_daily_spend.iloc[:,ind],name=budget, fill = 'tozeroy'))
-                            ind = ind + 1      
-                                    # Plot the stacked area chart
-                    fig.update_layout(title='Budget Spent In Time ',
-                        height=500 , 
-                        xaxis = dict(range=[pd.to_datetime('2023-01-01'), consolidated_daily_spend["Date"].max()])  ,# Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
-                        yaxis=dict(
-                        range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
-                        
-                    st.plotly_chart(fig, use_container_width=True)     
-                    
-                    ##############################################            
-                    # --- Pie charts for budget distributtion --- #
-                    ##############################################
+                                    col1, col2 = st.columns((2, 1), gap="large")
 
-                    
-                    if filtered_clients.empty:
-                        st.warning(":face_with_monocle:" + " There is no data for this period")
-                                    # Adding bars for Unspent
-                    else: 
-                        budget_groups = filtered_clients.groupby('Budget')                 
-                        num_budgets = len(budget_groups)
-                        sqrt_budgets = int(np.sqrt(num_budgets))
-                        cols = sqrt_budgets if num_budgets == sqrt_budgets**2 else sqrt_budgets + 1
-                        rows = num_budgets // cols + (num_budgets % cols > 0)  # ceil operation
 
-                        subplot_titles = [name for name, _ in budget_groups]
+                                    # --- Data for a chart --- #
+                                    
+                                    ####
+                                    budget_by_client = filtered_clients[["Client", "Budget", "Budget_Amount"]]
+                                    #budget_by_client = filtered_clients.groupby(['Client']).agg(
+                                    #            {'Budget_Amount': 'sum'}).reset_index().sort_values(by='Budget_Amount', ascending=False)
+                                    filtered_df = df 
+                                    #camp_df = filtered_df.loc[filtered_df["campaign_name"] in ]
 
-                        fig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, specs=[[{'type':'domain'} for _ in range(cols)] for _ in range(rows)])
+                                    
+                                    campaigns_for_sorting = camp_for_sorting(filtered_clients)
+                                    
+                                    filtered_df_2 = filtered_df[filtered_df['campaign_name'].isin(campaigns_for_sorting)]
+                                    campaign_spend = filtered_df_2.groupby(['campaign_name']).agg(
+                                                        {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
+                                    platform_campaign_spend = filtered_df_2.groupby(['platform_id','campaign_name']).agg(
+                                                {'spent_amount': 'sum'}).reset_index().sort_values(by='spent_amount', ascending=False)
+                                    
+                                    mapping = st.session_state.df.explode('Campaigns')[['Client', 'Campaigns']].rename(columns={'Campaigns': 'campaign_name'})
 
-                        for index, (budget_name, group) in enumerate(budget_groups):
-                            platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
-                            
-                            for _, row in group.iterrows():
-                                for campaign in row['Campaigns']:
-                                    filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
-
-                                    if  filtered.empty:
-                                        spent = None 
-                                    else:
-                                        spent = filtered.iloc[0] # or some default value or handling you'd like                            
-                                        if campaign in platform_spendings:
-                                            platform_spendings[campaign] += spent
+                                    
+                                    merged = pd.merge(mapping, campaign_spend, on='campaign_name', how='left').fillna(0)
+                                    total_spent_per_client = merged.groupby('Client')['spent_amount'].sum().reset_index()
+                                    final_df = pd.merge(budget_by_client, total_spent_per_client, on='Client', how='left')
+                                    final_df.rename(columns={'spent_amount': 'Total_Spent'}, inplace=True)
+                                    final_df['Unspent'] = final_df['Budget_Amount'] - final_df['Total_Spent']
+                                    final_df['Percentage_spend']  = round(final_df['Total_Spent']/ final_df['Budget_Amount']*100,2)
+                                    budgets_above_budget = final_df[final_df["Total_Spent"]> final_df['Budget_Amount']]
+                                    budgets_below_budget = final_df[final_df["Total_Spent"] <  final_df['Budget_Amount']]
+                                    budgets_below_budget = budgets_below_budget.rename(columns={"Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"}) 
+                                    budgets_above_budget["Unspent"] = abs(budgets_above_budget["Unspent"])
+                                    budgets_above_budget = budgets_above_budget.rename(columns={"Unspent":"Overspend","Budget_Amount": "Budget amount", "Total_Spent": "Total spend","Percentage_spend": "Percentage spend"})
+                                    
+                                    final_df = final_df.rename(columns = {"Budget_Amount": "Budget amount", "Total_Spent": "Total spend"})
+                                    melted_df = pd.melt(final_df, id_vars=['Client', 'Budget', 'Unspent', 'Percentage_spend'], 
+                                        value_vars=['Budget amount', 'Total spend'],
+                                        var_name='Type',
+                                        value_name='Value')
+                                    melted_df["Client-Budget"] = melted_df["Client"] + '-' + melted_df["Budget"]
+                                    
+                                    
+                                    
+                                    # --- Printing filtered data in second column --- #
+                                    if not budgets_below_budget.empty:
+                                        col2.markdown(title["inputdata"], unsafe_allow_html=True)
+                                        col2.write(budgets_below_budget.to_html(index=False), unsafe_allow_html=True)
+                                    if not budgets_above_budget.empty:
+                                        col2.error(" ⬇️ Spendings exceed budget limit")
+                                        col2.write(budgets_above_budget.to_html(index=False), unsafe_allow_html=True)
+                                    
+                                    st.write("---")
+                                    # --- Creating plot for client's budget --- #
+                                    if final_df.empty:
+                                        col1.warning(":face_with_monocle:" + " There are no data for this date and client")
+                                        # Adding bars for Unspent
+                                    else: 
+                                        # Adding bars for Total Spent
+                                        # Update layout settings
+                                        max_budget = final_df['Budget amount'].max()
+                                        max_spend = final_df['Total spend'].max()
+                                        if max_budget >= max_spend:
+                                            max_v = max_budget
                                         else:
-                                            platform_spendings[campaign] = spent
+                                            max_v = max_spend
+                                        is_first_figure = True
+                                        fig_spend = go.Figure()
+                                        color_mapping = {
+                                            'Budget amount': px.colors.qualitative.Plotly[2],
+                                            'Total spend': '#d33682'
+                                        }
+                                        fig = px.bar(melted_df, x="Client-Budget", y="Value", color="Type", barmode="group", color_discrete_map=color_mapping)
+                                        fig.update_traces(texttemplate='€ ' + '%{y:.2f}', textposition='inside',textfont_color = 'white')
+                                        # for index, row in melted_df.iterrows():
+                                        #     fig_spend.add_trace(go.Bar(
+                                        #             x=[row['Total_Spent']],
+                                        #             y=[row['Client']],
+                                        #             name='Total Spend',
+                                        #             orientation='h',
+                                        #             text=f"{row['Total_Spent']:.2f} EUR",
+                                        #             textposition='auto',
+                                        #             textfont_color = 'white',
+                                        #             marker_color='#d33682',
+                                        #             showlegend=is_first_figure
+                                        #         ))
+                                        #     fig_spend.add_trace(go.Bar(
+                                        #             x=[row['Budget_Amount']],
+                                        #             y=[row['Client']],
+                                        #             name='Total Budget Amount',
+                                        #             orientation='h',
+                                        #             text=f"{row['Budget_Amount']} EUR",
+                                        #             textposition='auto',
+                                        #             textfont_color = 'white',
+                                        #             marker_color=px.colors.qualitative.Plotly[2],
+                                        #             showlegend=is_first_figure  
+                                        #         ))   
+                                        #     is_first_figure = False
+                                                                                                                             
+                                        # fig_spend.update_layout(title='Client Spend vs Budget',
+                                        #                             xaxis=dict(
+                                        #                                 range=[0, max_v * 1.10], title='EUR'),
+                                        #                             yaxis_title='',
+                                        #                             barmode='group',
+                                        #                             showlegend=True)
+                                            #fig.for_each_trace(lambda t: t.update(textfont_color=t.marker.color, textposition='top center')) 
+                                        #col1.plotly_chart(fig_spend, use_container_width=True)
+                                        col1.plotly_chart(fig, use_container_width=True)
+                                        
+                                        #########################
+                                        # ---  Bar chart --- #
+                                        #########################
+                                    col11, col12 = st.columns((2, 1), gap="large")
+
+                                    spendings_df = pd.DataFrame(columns=['Client', 'Platform', 'Spend'])
+
+                                        # for index, row in filtered_clients.iterrows():
+                                        #     for campaign in row['Campaings']:
+                                        #         platform = campaign.split('-')[0]
+
+                                        #         # Check if the campaign exists in campaign_spend
+                                        #         campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+                                        #         if not campaign_data.empty:
+                                        #             spend = campaign_data.iloc[0]
+                                        #         else:
+                                        #             spend = 0
+
+                                        #         # Append the data to the spendings_df
+                                        #         new_row = pd.DataFrame({
+                                        #             'Client': [row['Client']],
+                                        #             'Platform': [platform],
+                                        #             'Spend': [spend]
+                                        #         })
+                                        #         spendings_df = pd.concat([spendings_df, new_row], ignore_index=True)
+                                        # # Aggregate spendings by client and platform
+                                        # spendings_agg = spendings_df.groupby(['Client', 'Platform']).sum().reset_index()
+                                        # # Create a grouped bar chart using Plotly
+                                        # fig = go.Figure()
+                                        # platforms = spendings_agg['Platform'].unique()
+
+                                        # for platform in platforms:
+                                        #     filtered_data = spendings_agg[spendings_agg['Platform'] == platform]
+                                        #     fig.add_trace(go.Bar(
+                                        #         x=filtered_data['Client'],
+                                        #         y=filtered_data['Spend'],
+                                        #         name=platform,
+                                                
+                                        #     ))
+                                        # fig.update_layout(
+                                        #     legend_title_text='Platform',                    
+                                        #     legend=dict(
+                                        #         font=dict(
+                                        #             size=20                                                                                    
+                                        #         )
+                                        #     ),
+                                        #     xaxis=dict(
+                                        #         tickfont=dict(
+                                        #             size=20
+                                        #         )
+                                        #     )
+                                        # )                
+
+                                        # col11.plotly_chart(fig, use_container_width=True) 
+
+                                        #########################
+                                        #########################
+                                        #########################
+                                    if filtered_clients.empty:
+                                        col11.warning("🧐" +"There are no data for this date and client")  
+                                    else:                 
+                                        for index, row in filtered_clients.iterrows():
+                                            for campaign in row['Campaigns']:
+                                                platform = campaign.split('-')[0]
+
+                                                # Check if the campaign exists in campaign_spend
+                                                campaign_data = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+                                                if not campaign_data.empty:
+                                                    spend = campaign_data.iloc[0]
+                                                else:
+                                                    spend = 0
+
+                                                    # Append the data to the spendings_df
+                                                new_row = pd.DataFrame({
+                                                    'Client': [row['Client']],
+                                                    'Platform': [platform],
+                                                    'Spend': [spend]
+                                                })
+                                                spendings_df = pd.concat([spendings_df, new_row], ignore_index=True)
+                                            
+                                        spendings_df = spendings_df.drop_duplicates()
+                                            
+                                        # Aggregate spendings by client and platform
+                                        spendings_agg = spendings_df.groupby(['Client', 'Platform']).sum().reset_index()
+
+                                        max_budget = final_df['Budget amount'].max()
+                                        max_spend = final_df['Total spend'].max()
+                                        if max_budget >= max_spend:
+                                            max_v = max_budget
+                                        else:
+                                            max_v = max_spend
+                                            
+                                            
+                                        # Create a grouped bar chart using Plotly
+                                        fig = go.Figure()
+                                        platforms = spendings_agg['Platform'].unique()
+
+                                        for platform in platforms:
+                                            filtered_data = spendings_agg[spendings_agg['Platform'] == platform]
+                                            fig.add_trace(go.Bar(
+                                                x=filtered_data['Client'],
+                                                y=filtered_data['Spend'],
+                                                name=platform
+                                            ))
+
+                                        # Update the bar mode to "stack" to get the desired visualization
+                                        fig.update_layout(
+                                            barmode='stack',
+                                            legend_title_text='Platform',
+                                            legend=dict(
+                                                font=dict(
+                                                    size=20
+                                                )
+                                            ),
+                                            xaxis=dict(
+                                                tickfont=dict(
+                                                    size=20
+                                                )
+                                            ),
+                                            yaxis=dict(
+                                            range=[0, max_v * 1.2], title='EUR')
+                                        )
+                                        fig.update_layout(title="Spendings by Platform for Selected Client", )
+                                        col11.plotly_chart(fig, use_container_width=True) 
+
+                                    st.divider()  
+
+                                        
                                     
-                            
-                            labels = list(platform_spendings.keys())
-                            values = list(platform_spendings.values())
-                            
-                            row_position = index // cols + 1
-                            col_position = index % cols + 1
-                            fig.add_trace(
-                                go.Pie(labels=labels, values=values, name=budget_name),
-                                row=row_position, col=col_position
-                            )
 
-                        # Adjusting the figure layout
-                        fig.update_layout(
-                            title_text="Pie charts for each budget",
-                            height=600 * rows,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
-                            width=600 * cols,    # Adjust the figure width
-                            margin=dict(t=50, l=50, r=50, b=50)   # Adjust the margins if needed
-                        )
+                                    # --- TAB 2 FOR BUDGETS --- #
+                                    
+                                    with tab1:
+                                        # st.header("Filters: ")
 
-                        st.plotly_chart(fig, use_container_width=True)         
+                                        
+                                        # with st.form("entry_form_budget_filter_tab2", clear_on_submit=False):
+                                        #     col1f, col2f = st.columns((1.5, 3))
+                                        #     col1f.selectbox('Select Year and Month:',
+                                        #                                     ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts_tab2")
+                                        #     col2f.multiselect('Select a client:',
+                                        #                                         client_list, default=None, max_selections=1,  placeholder="Client", key="selected_client_spend_tab2")
+                                        #     apply_css()
+                                        #     submitted = st.form_submit_button("Filter data",use_container_width = True)
+                                        #     if submitted:
+                                        #         data_from_snowflake = data_from_snowflake[data_from_snowflake['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))]
+                                        #         filtered_clients= data_from_snowflake[data_from_snowflake['Client'].isin(st.session_state["selected_client_spend_tab2"])]
+                                        #         filtered_df = df[df["start_date"]>= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts_tab2"]))] 
+                                        #################################
+                                        # --- Budget over time look --- #
+                                        #################################
+                                        consolidated_daily_spend = pd.DataFrame()
+                                        
+                                        daily_spend = filtered_df.groupby(['start_date', 'campaign_name']).agg({'spent_amount': 'sum'}).reset_index()
+                                        budgets = filtered_clients['Budget'].unique()
+                                        full_date_range = pd.date_range(start=daily_spend['start_date'].min(), end=daily_spend['start_date'].max())
+                                        consolidated_daily_spend = pd.DataFrame({'Date': full_date_range})
+                                        # Create a complete date range from the earliest to the latest date in the dataset
+                                        ind = 1
+                                        fig = go.Figure()
+                                        for budget in budgets:
+                                                related_campaigns = filtered_clients[filtered_clients['Budget'] == budget]['Campaigns'].explode().unique()
+
+                                                            # Filter the daily_spend dataframe for those campaigns
+                                                budget_daily_spend = daily_spend[daily_spend['campaign_name'].isin(related_campaigns)].copy()
+                                                            
+                                                campaign_cumsums = []  # A list to hold the cumulative sums for each campaign
+                                                            
+                                                for campaign in related_campaigns:
+                                                        campaign_data = budget_daily_spend[budget_daily_spend['campaign_name'] == campaign].set_index('start_date')
+                                                                
+                                                                # Fill missing dates with zeros for this campaign
+                                                        campaign_data = campaign_data.reindex(full_date_range, fill_value=0).reset_index()
+                                                        campaign_data['cumulative_spent'] = campaign_data['spent_amount'].cumsum()
+                                                                
+                                                        campaign_cumsums.append(campaign_data['cumulative_spent'])
+
+                                                            # Sum the cumulative sums for each campaign to get the cumulative sum for the entire budget
+                                                        
+                                                consolidated_daily_spend[budget] = sum(campaign_cumsums)
+
+                                                fig.add_trace(go.Scatter(x=consolidated_daily_spend["Date"], y=consolidated_daily_spend.iloc[:,ind],name=budget, fill = 'tozeroy'))
+                                                ind = ind + 1      
+                                                        # Plot the stacked area chart
+                                        fig.update_layout(title='Budget Spent In Time ',
+                                            height=500 , 
+                                            xaxis = dict(range=[pd.to_datetime('2023-01-01'), consolidated_daily_spend["Date"].max()])  ,# Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                                            yaxis=dict(
+                                            range=[0, consolidated_daily_spend.iloc[:, 1:].max().max() * 1.2], title='EUR'))
+                                            
+                                        st.plotly_chart(fig, use_container_width=True)     
+                                        
+                                        ##############################################            
+                                        # --- Pie charts for budget distributtion --- #
+                                        ##############################################
+
+                                        
+                                        if filtered_clients.empty:
+                                            st.warning(":face_with_monocle:" + " There is no data for this period")
+                                                        # Adding bars for Unspent
+                                        else: 
+                                            budget_groups = filtered_clients.groupby('Budget')                 
+                                            num_budgets = len(budget_groups)
+                                            sqrt_budgets = int(np.sqrt(num_budgets))
+                                            cols = sqrt_budgets if num_budgets == sqrt_budgets**2 else sqrt_budgets + 1
+                                            rows = num_budgets // cols + (num_budgets % cols > 0)  # ceil operation
+
+                                            subplot_titles = [name for name, _ in budget_groups]
+
+                                            fig = make_subplots(rows=rows, cols=cols, subplot_titles=subplot_titles, specs=[[{'type':'domain'} for _ in range(cols)] for _ in range(rows)])
+
+                                            for index, (budget_name, group) in enumerate(budget_groups):
+                                                platform_spendings = {}  # Dictionary to hold platform and their corresponding spending
+                                                
+                                                for _, row in group.iterrows():
+                                                    for campaign in row['Campaigns']:
+                                                        filtered = campaign_spend[campaign_spend['campaign_name'] == campaign]['spent_amount']
+
+                                                        if  filtered.empty:
+                                                            spent = None 
+                                                        else:
+                                                            spent = filtered.iloc[0] # or some default value or handling you'd like                            
+                                                            if campaign in platform_spendings:
+                                                                platform_spendings[campaign] += spent
+                                                            else:
+                                                                platform_spendings[campaign] = spent
+                                                        
+                                                
+                                                labels = list(platform_spendings.keys())
+                                                values = list(platform_spendings.values())
+                                                
+                                                row_position = index // cols + 1
+                                                col_position = index % cols + 1
+                                                fig.add_trace(
+                                                    go.Pie(labels=labels, values=values, name=budget_name),
+                                                    row=row_position, col=col_position
+                                                )
+
+                                            # Adjusting the figure layout
+                                            fig.update_layout(
+                                                title_text="Pie charts for each budget",
+                                                height=600 * rows,   # Adjust the figure height; 600 is arbitrary, you can set this to whatever you like
+                                                width=600 * cols,    # Adjust the figure width
+                                                margin=dict(t=50, l=50, r=50, b=50)   # Adjust the margins if needed
+                                            )
+
+                                            st.plotly_chart(fig, use_container_width=True) 
+                                
+                    except URLError as e:
+                                    st.error()
+                
+                # with st.form("entry_form_budget_filter", clear_on_submit=False):
+                    
+                #     col1f, col2f = st.columns((1.5, 3))
+                #     col1f.selectbox('Select Year and Month:',
+                #                                     ordered_list_year_month, index=default_ix_for_filter,  placeholder="All months", key="monthfiltercharts")
+                #     col2f.multiselect('Select a client',
+                #                                         client_list, default=None, max_selections=1, placeholder="Client", key="selected_client_spend_tab1")
+                    
+                #     apply_css()
+                #     submitted = st.form_submit_button("Filter data",use_container_width = True)
+                #     if submitted:
+                #         filtered_clients = filtered_clients[filtered_clients['Since_Date'] >= pd.to_datetime(first_day_month(st.session_state["monthfiltercharts"]))]
+                #         filtered_clients= filtered_clients[filtered_clients['Client'].isin(st.session_state["selected_client_spend_tab1"])]
+            
+                    
 elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
 elif st.session_state["authentication_status"] is None:
