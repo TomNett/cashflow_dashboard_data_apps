@@ -500,8 +500,8 @@ default = {
     }
 
 # --- AUTH PART --- #
-config_path = os.path.abspath(f"./config.yaml") # local path for testing
-#config_path = os.path.abspath(f"./app/config.yaml")
+#config_path = os.path.abspath(f"./config.yaml") # local path for testing
+config_path = os.path.abspath(f"./app/config.yaml")
 with open(config_path) as file:
     config = yaml.load(file, Loader=SafeLoader)
 
