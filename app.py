@@ -307,23 +307,50 @@ def plot_bottom_right():
 def plot_bottom_right_cummulative():
         campaign_data = duckdb.sql(
             f"""
-            SELECT 
-            start_date, 
-            campaign_name,
-            SUM(spent_amount) AS total_spent_amount
-            FROM 
-                filtered_df
-            WHERE 
-                start_date > '2023-01-01'
-            GROUP BY 
-                start_date, 
-                campaign_name
-            ORDER BY 
-                start_date, 
-                campaign_name
-        
+            SELECT
+                start_date,
+                campaign_name,
+                total_spent_amount,
+                SUM(total_spent_amount) OVER (PARTITION BY campaign_name ORDER BY start_date) AS CumulativeSum
+            FROM (
+                SELECT
+                    start_date,
+                    campaign_name,
+                    SUM(spent_amount) AS total_spent_amount
+                FROM
+                    filtered_df
+                WHERE
+                    start_date > '2023-01-01'
+                GROUP BY
+                    start_date,
+                    campaign_name
+                ORDER BY
+                    campaign_name, start_date
+            )                
+            ORDER BY
+                campaign_name, start_date;
+
         """
         ).df()
+        # campaign_data = duckdb.sql(
+        #     f"""
+        #     SELECT 
+        #     start_date, 
+        #     campaign_name,
+        #     SUM(spent_amount) AS total_spent_amount
+        #     FROM 
+        #         filtered_df
+        #     WHERE 
+        #         start_date > '2023-01-01'
+        #     GROUP BY 
+        #         start_date, 
+        #         campaign_name
+        #     ORDER BY 
+        #         start_date, 
+        #         campaign_name
+        
+        # """
+        # ).df()
         
         unique_campaigns = campaign_data['campaign_name'].unique()
         # Get multiple color sets
@@ -336,15 +363,15 @@ def plot_bottom_right_cummulative():
         fifty_colors = combined_colors[:50]
         color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
 
-        campaign_data['cumulative_spent'] = campaign_data.groupby('campaign_name')['total_spent_amount'].cumsum()
+        #campaign_data['cumulative_spent'] = campaign_data.groupby('campaign_name')['total_spent_amount'].cumsum()
 
         fig = px.line(
             campaign_data,
             x="start_date",
-            y="cumulative_spent",
+            y="CumulativeSum",
             color="campaign_name",
             color_discrete_map=color_map,  # Use the custom color map
-            
+            line_group="campaign_name",
             title="Cumulative Spends by Campaign in selected period in 2023",
         )
         fig.update_layout(
@@ -353,7 +380,7 @@ def plot_bottom_right_cummulative():
             yaxis=dict(
                 title='EUR')
             )
-        fig.update_traces(textposition="top center",fill = 'tozeroy')    
+        fig.update_traces(textposition="top center", fill = 'tozeroy')    
         st.plotly_chart(fig, use_container_width=True)
 
 def cumulative_metrics_charts(selected_metrics):
@@ -377,6 +404,7 @@ def cumulative_metrics_charts(selected_metrics):
                 
                 """
                 ).df()
+        
         unique_campaigns = campaign_data['campaign_name'].unique()
         # Get multiple color sets
         colors_set1 = px.colors.qualitative.Plotly
@@ -397,8 +425,9 @@ def cumulative_metrics_charts(selected_metrics):
                                 color_discrete_map=color_map,  # Use the custom color map
                                         
                                 title=f"Cumulative {metric} by campaign name in selected period",
-                            )
+                            )           
             fig.update_traces(textposition="top center",fill = 'tozeroy')
+            
             st.plotly_chart(fig, use_container_width=True)
 
 file_path = "/data/in/tables/ads_insight_fact.csv"
@@ -570,14 +599,7 @@ if st.session_state["authentication_status"]:
             filter_container = st.container()
             fc_col1, fc_col2 = filter_container.columns(2)
             fc_col3, fc_col4 = filter_container.columns(2)
-        #st.subheader('Select a client and budgets')
 
-        # filter_container = st.container()
-        # fc_col1, fc_col2 = filter_container.columns(2)
-
-        
-        
-        
         with st.container():
 
                 ##################
@@ -759,13 +781,7 @@ if st.session_state["authentication_status"]:
                 if not selected_metrics:
                     st.warning("ℹ️ Select a metric")
                     
-                else:
-                # grouped['ctr'] = (grouped['link_clicks'] /
-                #                   grouped['impressions']) * 100
-                # Campaigns_df = grouped.copy()
-                # max_campaign = Campaigns_df["ctr"].max()
-
-                
+                else:            
                     with tab1:
                         
                         agg_dict = {metric: 'sum' for metric in selected_metrics}
@@ -812,40 +828,7 @@ if st.session_state["authentication_status"]:
                         
 
                     with tab4:
-                        cumulative_metrics_charts(selected_metrics)
-                        # unique_campaigns = filtered_df['campaign_name'].unique()
-                        # # Get multiple color sets
-                        # colors_set1 = px.colors.qualitative.Plotly
-                        # colors_set2 = px.colors.qualitative.Dark24
-                        # colors_set3 = px.colors.qualitative.Set3
-
-                        # # Combine and slice to get 50 colors
-                        # combined_colors = colors_set1 + colors_set2 + colors_set3
-                        # fifty_colors = combined_colors[:50]
-                        # color_map = {campaign: fifty_colors[i % len(fifty_colors)] for i, campaign in enumerate(unique_campaigns)}
-                        # for metric in selected_metrics:
-                        #     st.subheader(metric.title() + ' cumulative chart')
-                            
-                        #     st.write(filtered_df)
-                        #     if metric in filtered_df.columns:
-                        #         filtered_df[f'cumulative_{metric}'] = filtered_df.groupby('start_date')[f'{metric}'].cumsum()                        
-                        #         fig = px.line(
-                        #             filtered_df,
-                        #             x="start_date",
-                        #             y=f'cumulative_{metric}',
-                        #             color="campaign_name",
-                        #             color_discrete_map=color_map,  # Use the custom color map
-                                            
-                        #             title=f"Cumulative {metric} by campaign_name in selected period",
-                        #         )
-                                
-                        #         fig.update_traces(textposition="top center",fill = 'tozeroy')
-                        #         #fig = px.bar(filtered_df, x="start_date", y=f'cumulative_{metric}', color="campaign_name")
-                        #         fig.update_layout(xaxis_title='Date', yaxis_title=f'cumulative_{metric}')
-                        #         st.plotly_chart(fig, use_container_width=True)
-                        #     else:
-                        #         st.write(f"The metric '{metric}' is not available in the data.")
-                        
+                        cumulative_metrics_charts(selected_metrics)                                        
                     with tab5:
                         st.markdown('Dataset :')
                         st.write(df.head())
@@ -870,17 +853,9 @@ if st.session_state["authentication_status"]:
             
             ##################################################
             #--- Data for metrics - current month ---#
-            ##################################################
-            
-            
-            
-            
+            ##################################################                                                
             first_metric,second_metric = st.columns(2)
-            
-            
-            
-             
-                
+
             with st.container():
                     #--- Data from snowflake for filters ---#        
                 
@@ -995,11 +970,6 @@ if st.session_state["authentication_status"]:
                                                     yaxis_title='Month',
                                                     showlegend=False)
 
-                                    # fig.add_shape(type="line",
-                                    #             x0=target_value, y0=0, x1=target_value, y1=1,
-                                    #             line=dict(color='rgb(64, 224, 208)', width=3),
-                                    #             xref='x', yref='paper')
-
                                     col1.plotly_chart(fig, use_container_width=True)
 
                                     #Column 2
@@ -1030,11 +1000,7 @@ if st.session_state["authentication_status"]:
                                                             yaxis_title='Platforn',
                                                             showlegend=False)
 
-                                    # fig_spend.add_shape(type="line",
-                                    #                     x0=target_value_platform_id, y0=0, x1=target_value_platform_id, y1=1,
-                                    #                     line=dict(color='rgb(64, 224, 208)', width=6),
-                                    #                     xref='x', yref='paper')
-                                    
+
 
                                     col2.plotly_chart(fig_spend, use_container_width=True)
                                     ####################
@@ -1095,19 +1061,14 @@ if st.session_state["authentication_status"]:
                                     with tab2:
                                             plot_bottom_right()
                                             plot_bottom_right_cummulative()
+                                            
+                                            
                             except URLError as e:
                                 st.error()
 
                     ###################
                     # Metrics section #
-                    ###################
-
-                    # Columns and data creation
-
-                    # df_current_month = df[(df['start_date'] >= (
-                    #     current_date - timedelta(days=30))) & (df['start_date'] <= current_date)]
-                    # df_last_month = df[(df['start_date'] >= (current_date - timedelta(days=60))) & (
-                    #     df['start_date'] <= (current_date - timedelta(days=60)))]  # TODO change to current month
+                    ###################                
                     
                 except URLError as e:
                     st.error()
@@ -1137,17 +1098,6 @@ if st.session_state["authentication_status"]:
             #############################
             currency_distinct = ["EUR"]
             #currency_distinct = ["EUR", "CZK", "USD"]
-
-            # Container for budget df
-            # Define column names for the empty dataframe
-            
-            
-
-            # Create an empty session state variable
-            
-            # Check if the session state variable is already defined
-
-            
 
             # Create a selectbox for each column in the current row
             for col in columns:
@@ -1250,11 +1200,15 @@ if st.session_state["authentication_status"]:
                                 }
                             </style>
                             """, unsafe_allow_html=True)
-                        if st.button("Add Row", disabled=False, type = 'primary'): #TODO: Transform it to use snowflake funct
-                            insert_rows_to_table(session_state.row)
-                            st.success("Item successfully added!")
-                            #insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
-                            st.session_state.df = fetch_data_from_sf()
+                        if session_state.row["client"] == '' or session_state.row["budget"] == '' or len(session_state.row["campaigns"])==0:
+                             st.warning("Please review the provided data, as it appears to possess discrepancies")
+                             st.button("Add Row", disabled=True, type = 'secondary')
+                        else:
+                            if st.button("Add Row", disabled=False, type = 'primary'): #TODO: Transform it to use snowflake funct
+                                insert_rows_to_table(session_state.row)
+                                st.success("Item successfully added!")
+                                #insert_rows_to_snowflake(session_state.row, kbc_token=kec_storage_token, kbc_url=kbc_url)
+                                st.session_state.df = fetch_data_from_sf()
                             #st.session_state.df["campaign"] = st.session_state.df["campaign"].apply(lambda x: list(x) if isinstance(x, types.GeneratorType) else x)
                         
                         st.write("---")

@@ -1,13 +1,18 @@
 import base64
 import os
-
+# "display: flex; justify-content: flex-start;
 logo_image = os.path.abspath("./app/static/actum-keboola.png")
 #logo_image = os.path.abspath("./static/actum-keboola.png") # local path for testing 
-logo_html = f"""<div style="display: flex; justify-content: flex-start;">
+logo_html = f"""<div style=
+    display: flex;
+    min-height: 100vh;
+    justify-content: center;
+    align-items: center;">
 
 
  <img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" 
-         style="width: 350px; margin-right: 20px;
+         style=
+         "width: 30%; margin-left: 20px;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 border-radius: 0.5px;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;">             
